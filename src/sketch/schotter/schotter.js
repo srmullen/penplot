@@ -1,10 +1,10 @@
 import paper, { Shape } from 'paper';
-import { createCanvas, saveAsSVG } from 'common/utils';
+import { A4, createCanvas } from 'common/setup';
+import { saveAsSVG } from 'common/utils';
 import { random } from 'mathjs';
 
-const width = 742;
-const height = 1052;
-const canvas = createCanvas(width, height);
+const [width, height] = A4.portrait;
+const canvas = createCanvas(A4.portrait);
 
 paper.setup(canvas);
 window.paper = paper;

@@ -1,16 +1,17 @@
 import paper, { Point, Path } from 'paper';
 import { flatten } from 'lodash';
 import math from 'mathjs';
+import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
-  createCanvas, saveAsSVG, intersects, intersection, radiansToDegrees, gauss, constrain
+  saveAsSVG, intersects, intersection, radiansToDegrees, gauss, constrain
 } from 'common/utils';
 import * as dat from 'dat.gui';
 
-const width = 1052;
-const height = 742;
-const canvas = createCanvas(width, height);
-
+const paperSize = STRATH_SMALL.landscape;
+const [width, height] = paperSize;
+const canvas = createCanvas(paperSize);
 paper.setup(canvas);
+
 window.paper = paper;
 window.math = math;
 window.gauss = gauss;
@@ -135,18 +136,18 @@ function randomizedSplitting () {
       return subdivide.random(triangle, random, sind);
     }
     const stop = (depth) => {
-      if (depth < 10) {
+      if (depth > props.depth) {
+        return true;
+      } else if (depth >= props.engage_stop) {
         return math.random() < props.stop_chance;
       } else {
         return false;
       }
     }
     // NOTE: Got 'Potential out of memory crash with depth of 20'
-    drawTriangles(recursiveSubdivide(subdiv, tri1, props.depth, stop));
-    drawTriangles(recursiveSubdivide(subdiv, tri2, props.depth, stop));
+    drawTriangles(recursiveSubdivide(subdiv, tri1, stop, 0));
+    drawTriangles(recursiveSubdivide(subdiv, tri2, stop, 0));
   }
-
-
 }
 
 function triangleRow () {
@@ -173,17 +174,29 @@ function triangle (x, y, baseWidth=100, height=100) {
   return [[p1, p2], [p2, p3], [p3, p1]];
 }
 
-function recursiveSubdivide (subdivide, triangle, depth, stop = () => false) {
-  if (depth > 0 && !stop(depth)) {
+function recursiveSubdivide (subdivide, triangle, stop = () => true, depth = 0) {
+  if (!stop(depth)) {
     const [t1, t2] = subdivide(triangle);
     return [
-      ...recursiveSubdivide(subdivide, t1, depth-1, stop),
-      ...recursiveSubdivide(subdivide, t2, depth-1, stop)
+      ...recursiveSubdivide(subdivide, t1, stop, depth+1),
+      ...recursiveSubdivide(subdivide, t2, stop, depth+1)
     ]
   } else {
     return [triangle];
   }
 }
+
+// function recursiveSubdivide (subdivide, triangle, depth, stop = () => false) {
+//   if (depth > 0 && !stop(depth)) {
+//     const [t1, t2] = subdivide(triangle);
+//     return [
+//       ...recursiveSubdivide(subdivide, t1, depth-1, stop),
+//       ...recursiveSubdivide(subdivide, t2, depth-1, stop)
+//     ]
+//   } else {
+//     return [triangle];
+//   }
+// }
 
 // TODO: Turn subdivided triangles to 3d and transform z with noise.
 function in3d () {

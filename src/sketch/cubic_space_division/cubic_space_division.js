@@ -1,15 +1,15 @@
 import paper, { Point, Path } from 'paper';
 import { minBy, maxBy } from 'lodash';
 import PolyBool from 'polybooljs';
+import { A4, createCanvas } from 'common/setup';
 import {
-  createCanvas, saveAsSVG, intersects, intersection, radiansToDegrees
+  saveAsSVG, intersects, intersection, radiansToDegrees
 } from 'common/utils';
 import math, { random, matrix } from 'mathjs';
 import { vec3, rotationXMatrix, rotationYMatrix, rotationZMatrix } from 'common/matrix';
 
-const width = 1052;
-const height = 742;
-const canvas = createCanvas(width, height);
+const [width, height] = A4.landscape;
+const canvas = createCanvas(A4.landscape);
 paper.setup(canvas);
 window.PolyBool = PolyBool;
 

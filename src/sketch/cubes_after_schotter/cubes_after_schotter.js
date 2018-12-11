@@ -2,8 +2,9 @@ import paper, { Point, Path } from 'paper';
 import { sortBy } from 'lodash';
 import Camera from 'common/Camera';
 import { difference } from 'common/polybool';
+import { A4, createCanvas } from 'common/setup';
 import {
-  createCanvas, saveAsSVG, intersects, intersection, radiansToDegrees
+  saveAsSVG, intersects, intersection, radiansToDegrees
 } from 'common/utils';
 import math, { random, matrix } from 'mathjs';
 import { vec3, rotationXMatrix, rotationYMatrix, rotationZMatrix } from 'common/matrix';
@@ -111,9 +112,8 @@ class Box {
   }
 }
 
-const width = 742;
-const height = 1052;
-const canvas = createCanvas(width, height);
+const [width, height] = A4.portrait;
+const canvas = createCanvas(A4.portrait);
 
 paper.setup(canvas);
 window.paper = paper;

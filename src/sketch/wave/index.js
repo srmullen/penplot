@@ -1,10 +1,10 @@
 import paper, { Path } from 'paper';
 import math from 'mathjs';
-import { createCanvas } from 'common/utils';
+import { createCanvas } from 'common/setup';
 
 const width = 1000;
 const height = 600;
-const canvas = createCanvas(width, height);
+const canvas = createCanvas([width, height]);
 paper.setup(canvas);
 window.paper = paper;
 window.math = math;

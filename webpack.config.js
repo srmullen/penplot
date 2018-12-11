@@ -39,6 +39,7 @@ module.exports = {
   plugins: htmlPlugins,
   resolve: {
     alias: {
+      // paper: path.resolve(__dirname, 'src/paper-modified'),
       common: path.resolve(__dirname, 'src/common')
     }
   },

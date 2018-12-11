@@ -1,24 +1,32 @@
 import axios from 'axios';
+import pako from 'pako';
 
-export function createCanvas (width=300, height=150) {
-  const root = document.getElementById('root');
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  canvas.style = 'border: 1px solid black';
-  root.appendChild(canvas);
-
-  return canvas;
-}
+// export function saveAsSVG (project, name='default') {
+//   console.log('Saving');
+//   const content = timer(() => {
+//     return project.exportSVG({asString: true});
+//   });
+//   const body = {
+//     name,
+//     content
+//   }
+//   axios.put('/api/svg', body, {headers: {'content-type': 'application/json'}}).then(res => {
+//     console.log(res);
+//   }).catch(err => {
+//     console.error(err);
+//   });
+// }
 
 export function saveAsSVG (project, name='default') {
-  const serializer = new XMLSerializer();
-  const svg = project.exportSVG();
-  const content = serializer.serializeToString(svg);
+  console.log('Saving');
+  const content = timer(() => {
+    return project.exportSVG({asString: true});
+  });
   const body = {
     name,
-    content
+    content: pako.deflate(content, {to: 'string'})
   }
+
   axios.put('/api/svg', body, {headers: {'content-type': 'application/json'}}).then(res => {
     console.log(res);
   }).catch(err => {

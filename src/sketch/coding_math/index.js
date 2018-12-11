@@ -1,14 +1,11 @@
 import paper, { Point, Path } from 'paper';
-import { createCanvas, saveAsSVG, intersects, radiansToDegrees, timer } from 'common/utils';
+import { A4, createCanvas } from 'common/setup';
+import { saveAsSVG, intersects, radiansToDegrees, timer } from 'common/utils';
 import math, { random } from 'mathjs';
 
-// paper.setup(canvas);
-// window.paper = paper;
-
 window.onload = function() {
-  const width = 742;
-  const height = 1052;
-  const canvas = createCanvas(width, height);
+  const [width, height] = A4.portrait;
+  const canvas = createCanvas(A4.portrait);
 	const context = canvas.getContext("2d");
 	const fl = 300;
 	const cards = [];
