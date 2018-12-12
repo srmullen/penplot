@@ -1,6 +1,8 @@
 import paper, { Point, Path } from 'paper';
 import { flatten } from 'lodash';
+import { map, reduce } from 'common/iterable';
 import math from 'mathjs';
+import uuid from 'uuid/v1';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
   saveAsSVG, intersects, intersection, radiansToDegrees, gauss, constrain
@@ -16,13 +18,47 @@ window.paper = paper;
 window.math = math;
 window.gauss = gauss;
 
+class LineSegment {
+
+  // static segments = {};
+
+  constructor (p1, p2) {
+    // this.id = uuid();
+    this.id = LineSegment.genID(p1, p2);
+    this.points = [p1, p2];
+    this[0] = p1;
+    this[1] = p2;
+    // LineSegment.segments[this.id] = this;
+  }
+
+  static of (p1, p2) {
+    return new LineSegment(p1, p2);
+  }
+
+  static genID (p1, p2) {
+    return p1.x.toString() + p1.y.toString() + p2.x.toString() + p2.y.toString();
+  }
+
+  [Symbol.iterator] () {
+    return this.points.values();
+  }
+}
+
 class Triangle {
   constructor (p1, p2, p3) {
-    this.segments = [[p1, p2], [p2, p3], [p3, p1]];
+    this.points = [p1, p2, p3];
+    this.segments = [LineSegment.of(p1, p2), LineSegment.of(p2, p3), LineSegment.of(p3, p1)];
+    for (let i = 0; i < 3; i++) {
+      this[i] = this.segments[i];
+    }
   }
 
   static of (p1, p2, p3) {
     return new Triangle(p1, p2, p3);
+  }
+
+  [Symbol.iterator] () {
+    return this.segments.values();
   }
 
   /**
@@ -32,12 +68,7 @@ class Triangle {
     const p1 = new Point(point);
     const p2 = p1.add(0, oppLength);
     const p3 = p1.add(adjLength, 0);
-    // return Triangle.of(p1, p2, p3);
-
-    const opposite = [p1, p2];
-    const hypotenuse = [p2, p3];
-    const adjacent = [p3, p1];
-    return [opposite, hypotenuse, adjacent];
+    return Triangle.of(p1, p2, p3);
   }
 
   /**
@@ -51,10 +82,19 @@ class Triangle {
     const reflectionPoint = surface[0].add(surface[1].subtract(surface[0]).divide(2));
     const vec = reflectionPoint.subtract(mirrorPoint).multiply(2);
     const newPoint = mirrorPoint.add(vec);
-    const triangle = tri.map(segment => segment.map(p => new Point(p)));
-    triangle[(segment + 1) % 3][1] = newPoint;
-    triangle[(segment + 2) % 3][0] = newPoint;
-    return triangle;
+    // const triangle = map(tri, segment => map(segment, p => new Point(p)));
+    // triangle[(segment + 1) % 3][1] = newPoint;
+    // triangle[(segment + 2) % 3][0] = newPoint;
+    // return triangle;
+
+    switch (segment) {
+      case 0:
+        return Triangle.of(surface[0], surface[1], newPoint);
+      case 1:
+        return Triangle.of(surface[1], newPoint, surface[0]);
+      case 2:
+        return Triangle.of(newPoint, surface[0], surface[1]);
+    }
   }
 }
 
@@ -73,8 +113,8 @@ const subdivide = {
     const segment = triangle[sind];
     const cornerPoint = triangle[(sind+1) % 3][1];
     const p = segment[0].add(segmentVector(segment).multiply(randomFn()));
-    const t1 = [[cornerPoint, p], [p, segment[0]], [segment[0], cornerPoint]];
-    const t2 = [[cornerPoint, p], [p, segment[1]], [segment[1], cornerPoint]];
+    const t1 = Triangle.of(cornerPoint, p, segment[0]);
+    const t2 = Triangle.of(cornerPoint, p, segment[1]);
     return [t1, t2];
   }
 }
@@ -122,17 +162,20 @@ function randomizedSplitting () {
     if (props.seed) {
       math.config({randomSeed: props.seed});
     }
-    const tri1 = Triangle.right([10, 10], width-20, height-20);
+
+    const marginV = 20;
+    const marginH = 20
+    const tri1 = Triangle.right([marginH, marginV], width - (marginH * 2), height - (marginV * 2));
     const tri2 = Triangle.mirror(tri1, 1);
     const random = () => constrain(
       gauss(props.gauss_a, props.gauss_b, props.gauss_c, math.random()),
       0.1, 0.9
     );
     const subdiv = (triangle) => {
-      const {sind} = triangle.reduce((acc, segment, i) => {
+      const {sind} = reduce((acc, segment, i) => {
         const length = segmentLength(segment);
         return length > acc.max ? {sind: i, max: length} : acc;
-      }, {sind: null, max: -Infinity});
+      }, triangle, {sind: null, max: -Infinity});
       return subdivide.random(triangle, random, sind);
     }
     const stop = (depth) => {
@@ -150,6 +193,18 @@ function randomizedSplitting () {
   }
 }
 
+function recursiveSubdivide (subdivide, triangle, stop = () => true, depth = 0) {
+  if (!stop(depth)) {
+    const [t1, t2] = subdivide(triangle);
+    return [
+      ...recursiveSubdivide(subdivide, t1, stop, depth+1),
+      ...recursiveSubdivide(subdivide, t2, stop, depth+1)
+    ]
+  } else {
+    return [triangle];
+  }
+}
+
 function triangleRow () {
   const tris = createTriangleRow(15, [10, 10]).map(tri => recursiveSubdivide(subdivide.half, tri, math.randomInt(2, 10)));
   drawTriangles(flatten(tris));
@@ -164,7 +219,13 @@ function triangleRow () {
 }
 
 function drawTriangles(tris) {
-  tris.map(tri => tri.map(drawSegment));
+  const drawn = {};
+  tris.map(tri => map((segment) => {
+    if (!drawn[segment.id]) {
+      drawSegment(segment);
+      drawn[segment.id] = true;
+    }
+  }, tri));
 }
 
 function triangle (x, y, baseWidth=100, height=100) {
@@ -173,30 +234,6 @@ function triangle (x, y, baseWidth=100, height=100) {
   const p3 = p1.add(baseWidth/2, height);
   return [[p1, p2], [p2, p3], [p3, p1]];
 }
-
-function recursiveSubdivide (subdivide, triangle, stop = () => true, depth = 0) {
-  if (!stop(depth)) {
-    const [t1, t2] = subdivide(triangle);
-    return [
-      ...recursiveSubdivide(subdivide, t1, stop, depth+1),
-      ...recursiveSubdivide(subdivide, t2, stop, depth+1)
-    ]
-  } else {
-    return [triangle];
-  }
-}
-
-// function recursiveSubdivide (subdivide, triangle, depth, stop = () => false) {
-//   if (depth > 0 && !stop(depth)) {
-//     const [t1, t2] = subdivide(triangle);
-//     return [
-//       ...recursiveSubdivide(subdivide, t1, depth-1, stop),
-//       ...recursiveSubdivide(subdivide, t2, depth-1, stop)
-//     ]
-//   } else {
-//     return [triangle];
-//   }
-// }
 
 // TODO: Turn subdivided triangles to 3d and transform z with noise.
 function in3d () {
