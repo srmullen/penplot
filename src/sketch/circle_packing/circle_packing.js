@@ -1,12 +1,14 @@
 import paper, { Point, Path, Group } from 'paper';
 import { sortBy } from 'lodash';
 import please from 'pleasejs';
+import { Noise } from 'noisejs';
 import dat from 'dat.gui';
 import { STRATH_SMALL, createCanvas } from 'common/setup';
 import {
-  saveAsSVG, intersects, intersection, radiansToDegrees
+  saveAsSVG, intersects, intersection, radiansToDegrees, choose
 } from 'common/utils';
 import math, { random, matrix } from 'mathjs';
+import * as pens from 'common/pens';
 
 const [width, height] = STRATH_SMALL.landscape;
 const canvas = createCanvas(STRATH_SMALL.landscape);
@@ -27,9 +29,9 @@ function randomPacking () {
     }
     drawCircles((circle) => {
       const angle = math.random(0, math.PI * 2);
-      const color = please.make_color();
       const numStripes = math.randomInt(5, 20);
-      return stripes(circle, {angle, color, numStripes});
+      const pen = choose(pens.prisma05);
+      return pens.withPen(pen, (info) => stripes(circle, {angle, numStripes, ...info}));
     }, circles);
     console.log('Done!');
   }
@@ -74,7 +76,8 @@ function basic (circle) {
 function stripes ({radius, center}, {
   numStripes = 20,
   angle = math.PI/4,
-  color = '#f00'
+  color = '#f00',
+  strokeWidth = 1
 }) {
   const outline = new Path.Circle({
     radius,
@@ -100,7 +103,8 @@ function stripes ({radius, center}, {
       group.addChild(Path.Line({
         from: intersections[0].point,
         to: intersections[1].point,
-        strokeColor: color
+        strokeColor: color,
+        strokeWidth
       }));
     }
     trace.translate(step);
@@ -136,5 +140,93 @@ function testStripes () {
   }
 }
 
+function testPens () {
+  const props = {};
+  const gui = new dat.GUI();
+  pens.prisma05.forEach(pen => {
+    props[pen] = pens.info[pen].color;
+    gui.addColor(props, pen).onChange(run);
+  });
+
+  run();
+
+  function run () {
+    pens.prisma05.forEach((pen, i) => {
+      pens.withPen(pen, ({color, strokeWidth}) => {
+        paper.project.activeLayer.clear();
+        new Path.Line({
+          strokeColor: color,
+          strokeWidth,
+          from: [100, 50 + (i * 50)],
+          to: [500, 50 + (i * 50)],
+        })
+      });
+    });
+  }
+}
+
+window.noise = new Noise();
+
+function noisePacking () {
+  const gui = new dat.GUI();
+  const props = {
+    run,
+    seed: 0,
+  };
+
+  gui.add(props, 'seed');
+  gui.add(props, 'run');
+
+  let group = new paper.Group();
+
+  function run () {
+    if (props.seed) {
+      math.config({randomSeed: props.seed});
+      noise.seed(props.seed);
+    }
+    group.remove();
+    group = new paper.Group();
+    const circles = [];
+    for (let i = 0; i < 1000; i++) {
+      const radius = math.random(2, 20);
+      const circle = packCircle(radius, circles);
+      if (circle) {
+        circles.push(circle);
+      }
+    }
+
+    const items = drawCircles((circle) => {
+      const angle = noise.perlin2(
+        circle.center[0], circle.center[1]) * math.PI;
+      const numStripes = math.randomInt(5, 10);
+      const pen = choose(pens.prisma05);
+      return pens.withPen(pen, (info) => stripes(circle, {angle, numStripes, ...info}));
+    }, circles);
+    group.addChildren(items);
+    console.log('Done!');
+  }
+
+  function packCircle (radius, circles, attempts=200) {
+    const margin = 20;
+    for (let i = 0; i < attempts; i++) {
+      const center = [
+        math.random(radius + margin, width - (radius + margin)),
+        math.random(radius + margin, height - (radius + margin))
+      ];
+      const overlaps = circles.some((circ) => hasOverlap({center, radius}, circ));
+      if (!circles.length || !overlaps) {
+        return {
+          radius,
+          center
+        };
+      }
+    }
+  }
+
+  run();
+}
+
 // testStripes();
-randomPacking();
+// testPens();
+// randomPacking();
+noisePacking();

@@ -1,5 +1,6 @@
 import paper, { Point, Path } from 'paper';
 import { sortBy } from 'lodash';
+import dat from 'dat.gui';
 import { difference } from 'common/polybool';
 import Camera from 'common/Camera';
 import { A4, createCanvas } from 'common/setup';
@@ -22,6 +23,30 @@ class Box {
     this.height = height;
     this.depth = depth;
     this.pos = pos;
+  }
+
+  get x () {
+    return this.pos[0];
+  }
+
+  set x (val) {
+    this.pos[0] = val;
+  }
+
+  get y () {
+    return this.pos[1];
+  }
+
+  set y (val) {
+    this.pos[1] = val;
+  }
+
+  get z () {
+    return this.pos[2];
+  }
+
+  set z (val) {
+    this.pos[2] = val;
   }
 
   /**
@@ -118,20 +143,6 @@ class Box {
     return group;
   }
 }
-const size = 200;
-const box = new Box(size, size, size);
-
-const translation = matrix([
-  [0, 0, 0, 0],
-  [0, 0, 0, 0],
-  [0, 0, 0, 0],
-  [-size/2, -size/2, -size/2, 0]
-]);
-
-const camera = new Camera(
-  700,
-  math.multiply(math.add(math.identity(4), translation), rotationXMatrix(Math.PI / 5), rotationYMatrix(Math.PI / 5))
-);
 
 // const camera = new Camera(
 //   1500,
@@ -156,17 +167,31 @@ const layers = {
 
 window.layers = layers;
 
-// drawBox(box, camera);
-drawSolidBox(box, camera);
-// animateHatchedBox(box, camera);
-// animateSolidBox(box, camera);
-
 function matrixToPoint (mat) {
   const [x, y, z] = mat.toArray();
   return new Point(x, y);
 }
 
-function drawBox (box, camera) {
+function hatchedBoxExample () {
+  const size = 200;
+  const box = new Box(size, size, size);
+
+  const translation = matrix([
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [-size/2, -size/2, -size/2, 0]
+  ]);
+
+  const camera = new Camera(
+    700,
+    math.multiply(math.add(math.identity(4), translation), rotationXMatrix(Math.PI / 5), rotationYMatrix(Math.PI / 5))
+  );
+
+  drawHatchedBox(box, camera);
+}
+
+function drawHatchedBox (box, camera) {
   const planes = Box.getPlanes(box);
   for (let name in planes) {
     const plane = planes[name];
@@ -177,7 +202,7 @@ function drawBox (box, camera) {
   }
 }
 
-function drawSolidBox () {
+function solidBoxExample () {
   const size = 200;
   const box = new Box(size, size, size, [200, 300, 0]);
 
@@ -206,6 +231,10 @@ function drawSolidBox () {
   //   math.add(math.identity(4), translation)
   // );
 
+  drawSolidBox(box, camera);
+}
+
+function drawSolidBox (box, camera) {
   const planes = sortPolygons(Object.values(Box.getPlanes(box)).map(plane => {
     return Box.toScreenSpace(plane, camera);
   }));
@@ -228,7 +257,7 @@ function drawSolidBox () {
     }
   }
 
-  group.translate(width/2, height/2);
+  // group.translate(width/2, height/2);
   return group;
 }
 
@@ -236,6 +265,8 @@ function drawSolidBox () {
  * Sort the given polygons by their front most point. i.e. the minimum z value.
  * @param {Array} - Array of polygons.
  */
+// FIXME: Need to sort by distance from camera position, not just the z position.
+// This would break if camera look from opposite direction.
 function sortPolygons (polygons) {
   return sortBy(polygons, (polygon) => {
     const zs = polygon.map(mat => mat.get([2]));
@@ -294,24 +325,60 @@ function drawPlaneHatching (plane, camera, {color='black'}={}) {
   return group;
 }
 
+function animateSolidBoxExample () {
+  const size = 200;
+  const box = new Box(size, size, size);
+
+  const translation = matrix([
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [-size/2, -size/2, -size/2, 0]
+  ]);
+
+  const camera = new Camera(
+    700,
+    math.multiply(math.add(math.identity(4), translation), rotationXMatrix(Math.PI / 5), rotationYMatrix(Math.PI / 5))
+  );
+
+  animateSolidBox(box, camera);
+}
+
 function animateSolidBox (box, camera) {
   let group = new paper.Group();
   paper.view.onFrame = () => {
     group.remove();
-    camera.rotate(rotationXMatrix(0.01));
-    camera.rotate(rotationYMatrix(0.01));
-    camera.rotate(rotationZMatrix(0.01));
+    camera.rotate(0.01, 0.01, 0.01);
     group = drawSolidBox(box, camera);
   }
 }
 
-paper.view.onMouseDown = () => {
-  if (paper.view._animate) {
-    paper.view.pause();
-    console.log(camera);
-  } else {
-    paper.view.play();
+function animateHatchedBoxExmaple () {
+  paper.view.onMouseDown = () => {
+    if (paper.view._animate) {
+      paper.view.pause();
+      console.log(camera);
+    } else {
+      paper.view.play();
+    }
   }
+
+  const size = 200;
+  const box = new Box(size, size, size);
+
+  const translation = matrix([
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [-size/2, -size/2, -size/2, 0]
+  ]);
+
+  const camera = new Camera(
+    700,
+    math.multiply(math.add(math.identity(4), translation), rotationXMatrix(Math.PI / 5), rotationYMatrix(Math.PI / 5))
+  );
+
+  animateHatchedBox(box, camera);
 }
 
 function animateHatchedBox (box, camera) {
@@ -320,9 +387,7 @@ function animateHatchedBox (box, camera) {
   paper.view.onFrame = () => {
     group.remove();
     group = new paper.Group();
-    camera.rotate(rotationXMatrix(0.02));
-    camera.rotate(rotationYMatrix(0.01));
-    camera.rotate(rotationZMatrix(0.03));
+    camera.rotate(0.01, 0.01, 0.03);
     for (let name in planes) {
       const plane = planes[name];
 
@@ -335,3 +400,192 @@ function animateHatchedBox (box, camera) {
 window.saveAsSVG = (name) => {
   saveAsSVG(paper.project, name);
 }
+
+function testCameraControl () {
+  const props = {
+    camRotateX: 0,
+    camRotateY: 0,
+    camRotateZ: 0,
+    rotateCamera,
+    fromX: 0,
+    fromY: 0,
+    fromZ: 0,
+    toX: 0,
+    toY: 0,
+    toZ: 0,
+    look,
+    focalLength: 700
+  };
+
+  paper.view.translate(width/2, height/2);
+
+  const size = 100;
+  const box = new Box(size, size, size, [0, 0, 500]);
+
+  const camera = new Camera(
+    props.focalLength,
+    // math.multiply(math.add(math.identity(4), translation), rotationXMatrix(Math.PI / 5), rotationYMatrix(Math.PI / 5))
+    // math.add(math.identity(4), translation)
+  );
+
+  function rotateCamera () {
+    camera.rotate(props.camRotateX, props.camRotateY, props.camRotateZ);
+  }
+
+  function look () {
+    camera.look(
+      [props.fromX, props.fromY, props.fromZ],
+      [props.toX, props.toY, props.toZ]
+    );
+  }
+
+  const gui = new dat.GUI();
+  controlBox(gui, box);
+  gui.add(props, 'camRotateX', -math.PI, math.PI).step(0.01);
+  gui.add(props, 'camRotateY', -math.PI, math.PI).step(0.01);
+  gui.add(props, 'camRotateZ', -math.PI, math.PI).step(0.01);
+  gui.add(props, 'rotateCamera');
+  const fromXController = gui.add(props, 'fromX');
+  const fromYController = gui.add(props, 'fromY');
+  const fromZController = gui.add(props, 'fromZ');
+  fromXController.onChange(() => look());
+  fromYController.onChange(() => look());
+  fromZController.onChange(() => look());
+  const toXController = gui.add(props, 'toX');
+  const toYController = gui.add(props, 'toY');
+  const toZController = gui.add(props, 'toZ');
+  toXController.onChange(() => look());
+  toYController.onChange(() => look());
+  toZController.onChange(() => look());
+  gui.add(props, 'look');
+
+
+  const focalLengthController = gui.add(props, 'focalLength');
+  focalLengthController.onChange(val => {
+    camera.focalLength = val;
+  });
+
+  new Path.Circle({
+    center: [width/2, height/2],
+    radius: 10,
+    fillColor: 'red'
+  });
+
+  let group = new paper.Group();
+  paper.view.onFrame = () => {
+    group.remove();
+    group = drawSolidBox(box, camera);
+  }
+}
+
+function controlBox (gui, box, name = 'Box') {
+  const folder = gui.addFolder(name);
+  folder.add(box, 'x');
+  folder.add(box, 'y');
+  folder.add(box, 'z');
+  folder.open();
+}
+
+function withPinholeCamera () {
+  const props = {
+    focalLength: 35,
+    filmApertureWidth: 0.825,
+    filmApertureHeight: 0.446,
+    nearClippingPlane: 1,
+    farClipingPlane: 1000,
+    imageWidth: width,
+    imageHeight: height,
+    fitFilm: ''
+  };
+
+  const camProps = {
+    rotateX: 0,
+    rotateY: 0,
+    rotateZ: 0,
+    translateX: 0,
+    translateY: 0,
+    translateZ: 0,
+    run
+  };
+
+  // const camera = new Camera(props, math.matrix([
+  //   [-0.95424,  0,         0.299041,  0],
+  //   [0.0861242, 0.95763,   0.274823,  0],
+  //   [-0.28637,  0.288002, -0.913809,  0],
+  //   [-3.734612, 7.610426, -14.152769, 1]
+  // ]));
+
+  const camera = new Camera(props);
+
+  const gui = new dat.GUI();
+  gui.add(props, 'focalLength').onChange(focalLength => {
+    camera.setProps({focalLength});
+    run();
+  });
+  gui.add(props, 'filmApertureWidth').onChange(filmApertureWidth => camera.setProps({filmApertureWidth}));
+  gui.add(props, 'filmApertureHeight').onChange(filmApertureHeight => camera.setProps({filmApertureHeight}));
+  gui.add(props, 'imageWidth').onChange(imageWidth => camera.setProps({imageWidth}));
+  gui.add(props, 'imageHeight').onChange(imageHeight => camera.setProps({imageHeight}));
+  gui.add(props, 'nearClippingPlane').onChange(nearClippingPlane => camera.setProps({nearClippingPlane}));
+  gui.add(props, 'fitFilm', ['', 'fill', 'overscan']).onChange(fitFilm => camera.setProps({fitFilm}));
+
+  const cameraFolder = gui.addFolder('Camera');
+  cameraFolder.add(camProps, 'rotateX', -math.PI, math.PI).step(0.01).onChange(val => {
+    camera.rotate(val, 0, 0);
+    run();
+  });
+  cameraFolder.add(camProps, 'rotateY', -math.PI, math.PI).step(0.01).onChange(val => {
+    camera.rotate(0, val, 0);
+    run();
+  });
+  cameraFolder.add(camProps, 'rotateZ', -math.PI, math.PI).step(0.01).onChange(val => {
+    camera.rotate(0, 0, val);
+    run()
+  });
+  cameraFolder.add(camProps, 'translateX', -1, 1).onChange(val => {
+    camera.translate(val, 0, 0);
+    run();
+  });
+  cameraFolder.add(camProps, 'translateY', -1, 1).onChange(val => {
+    camera.translate(0, val, 0);
+    run();
+  });
+  cameraFolder.add(camProps, 'translateZ', -1, 1).onChange(val => {
+    camera.translate(0, 0, val);
+    run();
+  });
+
+  const size = 2;
+  const box = new Box(size, size, size, [0, 0, 1]);
+
+  // paper.view.onFrame = () => {
+  //   // run();
+  // }
+
+  // paper.view.translate(width/2, height/2);
+  let group = new paper.Group();
+
+  run();
+
+  function run () {
+    group.remove();
+    group = new paper.Group();
+    const points = Box.getVertices(box);
+    points.map(point => {
+      const [visible, coord] = camera.computePixelCoordinates(point);
+      console.log(coord);
+      group.addChild(new Path.Circle({
+        fillColor: 'red',
+        center: coord,
+        radius: 2
+      }));
+    });
+  }
+}
+
+// hatchedBoxExample();
+// solidBoxExample();
+// animateHatchedBoxExmaple();
+// animateSolidBoxExample();
+// testCameraControl();
+withPinholeCamera();

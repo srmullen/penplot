@@ -1,12 +1,12 @@
 import paper, { Point, Path } from 'paper';
-import { A4, createCanvas } from 'common/setup';
+import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import { saveAsSVG, intersects, radiansToDegrees, timer } from 'common/utils';
 import math, { random } from 'mathjs';
 
 math.config({randomSeed: 101});
 
-const [width, height] = A4.landscape;
-const canvas = createCanvas(A4.landscape);
+const [width, height] = STRATH_SMALL.landscape;
+const canvas = createCanvas(STRATH_SMALL.landscape);
 
 paper.setup(canvas);
 window.paper = paper;

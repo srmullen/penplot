@@ -1,5 +1,6 @@
 import axios from 'axios';
 import pako from 'pako';
+import { randomInt } from 'mathjs';
 
 // export function saveAsSVG (project, name='default') {
 //   console.log('Saving');
@@ -107,4 +108,8 @@ export function gauss (a, b, c, x) {
 
 export function constrain (n, low, high) {
   return Math.max(Math.min(n, high), low);
+}
+
+export function choose (arr) {
+  return arr[randomInt(arr.length)];
 }

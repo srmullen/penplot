@@ -51,133 +51,88 @@ function boat () {
     16,  25,  12,  25,   4,  12,  12,   4,   8,  26,  27,  28,  29,  30,  31,
     32,  34,  33
   ];
-
-  // const focalLength = 35;
-  // // 35mm full aperture.
-  // const filmApertureWidth = 0.980;
-  // const filmApertureHeight = 0.735;
-  // const nearClippingPlane = 0.1;
-  // const farClippingPlane = 1000;
-
-  // const focalLength = 35; // in mm
-  // // 35mm Full Aperture in inches
-  // const filmApertureWidth = 0.825;
-  // const filmApertureHeight = 0.446;
-  // const nearClippingPlane = 0.1;
-  // const farClipingPlane = 1000;
-  // // image resolution in pixels
-  // const imageWidth = 512;
-  // const imageHeight = 512;
-
-  const inchToMm = 25.4;
-
+  
   const props = {
     focalLength: 35,
     filmApertureWidth: 0.825,
     filmApertureHeight: 0.446,
-    nearClippingPlane: 0.1,
+    nearClippingPlane: 1,
     farClipingPlane: 1000,
     imageWidth: width,
     imageHeight: height,
     fitFilm: ''
   };
 
+  const camProps = {
+    rotateX: 0,
+    rotateY: 0,
+    rotateZ: 0,
+    translateX: 0,
+    translateY: 0,
+    translateZ: 0,
+    run
+  };
+
+  const camera = new Camera(props, math.matrix([
+    [-0.95424,  0,         0.299041,  0],
+    [0.0861242, 0.95763,   0.274823,  0],
+    [-0.28637,  0.288002, -0.913809,  0],
+    [-3.734612, 7.610426, -14.152769, 1]
+  ]));
+
+  // const camera = new Camera(props);
+
   const gui = new dat.GUI();
-  gui.add(props, 'focalLength').onChange(run);
-  gui.add(props, 'filmApertureWidth').onChange(run);
-  gui.add(props, 'filmApertureHeight').onChange(run);
-  gui.add(props, 'imageWidth').onChange(run);
-  gui.add(props, 'imageHeight').onChange(run);
-  gui.add(props, 'fitFilm', ['', 'fill', 'overscan']).onChange(run);
+  gui.add(props, 'focalLength').onChange(focalLength => camera.setProps({focalLength}));
+  gui.add(props, 'filmApertureWidth').onChange(filmApertureWidth => camera.setProps({filmApertureWidth}));
+  gui.add(props, 'filmApertureHeight').onChange(filmApertureHeight => camera.setProps({filmApertureHeight}));
+  gui.add(props, 'imageWidth').onChange(imageWidth => camera.setProps({imageWidth}));
+  gui.add(props, 'imageHeight').onChange(imageHeight => camera.setProps({imageHeight}));
+  gui.add(props, 'nearClippingPlane').onChange(nearClippingPlane => camera.setProps({nearClippingPlane}));
+  gui.add(props, 'fitFilm', ['', 'fill', 'overscan']).onChange(fitFilm => camera.setProps({fitFilm}));
+
+  const cameraFolder = gui.addFolder('Camera');
+  cameraFolder.add(camProps, 'rotateX', -math.PI, math.PI).step(0.01).onChange(val => {
+    camera.rotate(val, 0, 0);
+  });
+  cameraFolder.add(camProps, 'rotateY', -math.PI, math.PI).step(0.01).onChange(val => {
+    camera.rotate(0, val, 0);
+  });
+  cameraFolder.add(camProps, 'rotateZ', -math.PI, math.PI).step(0.01).onChange(val => {
+    camera.rotate(0, 0, val);
+  });
+  cameraFolder.add(camProps, 'translateX', -1, 1).onChange(val => {
+    camera.translate(val, 0, 0);
+  });
+  cameraFolder.add(camProps, 'translateY', -1, 1).onChange(val => {
+    camera.translate(0, val, 0);
+  });
+  cameraFolder.add(camProps, 'translateZ', -1, 1).onChange(val => {
+    camera.translate(0, 0, val);
+  });
+  cameraFolder.add(camProps, 'run');
 
   let group = new paper.Group();
 
   paper.view.translate(0, height/2);
 
-  run();
+  paper.view.onFrame = () => {
+    run();
+  }
 
   function run () {
     group.remove();
 
-    const filmAspectRatio = props.filmApertureWidth / props.filmApertureHeight;
-    const deviceAspectRatio = props.imageWidth / props.imageHeight;
+    const worldToCamera = math.inv(camera.matrix);
 
-    let xscale = 1;
-    let yscale = 1;
-
-    if (props.fitFilm === 'fill') {
-      if (deviceAspectRatio > filmAspectRatio) {
-        xscale = deviceAspectRatio / filmAspectRatio;
-      } else {
-        yscale = filmAspectRatio / deviceAspectRatio;
-      }
-    } else if (props.fitFilm === 'overscan') {
-      if (filmAspectRatio > deviceAspectRatio) {
-        yscale = filmAspectRatio / deviceAspectRatio;
-      } else {
-        xscale = deviceAspectRatio / filmAspectRatio;
-      }
-    }
-
-    const angleOfViewHorizontal = 2 * math.atan((props.filmApertureWidth * inchToMm / 2) / props.focalLength);
-    const right = math.tan(angleOfViewHorizontal / 2) * props.nearClippingPlane * xscale
-    const angleOfViewVertical = 2 * math.atan((props.filmApertureHeight * inchToMm / 2) / props.focalLength);
-    const top = math.tan(angleOfViewVertical / 2) * props.nearClippingPlane * yscale;
-    const left = -right;
-    const bottom = -top;
-
-    console.log(`Left: ${left}, Right: ${right}, Top: ${top}, Bottom: ${bottom}`);
-    console.log(`Film Aspect Ratio: ${filmAspectRatio}, Device Aspect Ratio: ${deviceAspectRatio}`);
-    console.log(`Horizontal Angle of View: ${angleOfViewHorizontal}, Vertical Angle of View: ${angleOfViewVertical}`);
-
-    const cameraToWorld = math.matrix([
-      [-0.95424,  0,         0.299041,  0],
-      [0.0861242, 0.95763,   0.274823,  0],
-      [-0.28637,  0.288002, -0.913809,  0],
-      [-3.734612, 7.610426, -14.152769, 1]
-    ]);
-
-    const worldToCamera = math.inv(cameraToWorld);
-
-    // paper.view.translate(0, height/2);
     group = new paper.Group();
     for (let i = 0; i < numTris; i++) {
       const v0World = verts[tris[i * 3]];
       const v1World = verts[tris[i * 3 + 1]];
       const v2World = verts[tris[i * 3 + 2]];
-      const [visible0, v0Raster] = computePixelCoordinates(
-        v0World,
-        worldToCamera,
-        bottom,
-        left,
-        top,
-        right,
-        props.nearClippingPlane,
-        props.imageWidth,
-        props.imageHeight
-      );
-      const [visible1, v1Raster] = computePixelCoordinates(
-        v1World,
-        worldToCamera,
-        bottom,
-        left,
-        top,
-        right,
-        props.nearClippingPlane,
-        props.imageWidth,
-        props.imageHeight
-      );
-      const [visible2, v2Raster] = computePixelCoordinates(
-        v2World,
-        worldToCamera,
-        bottom,
-        left,
-        top,
-        right,
-        props.nearClippingPlane,
-        props.imageWidth,
-        props.imageHeight
-      );
+      const [visible0, v0Raster] = camera.computePixelCoordinates(v0World);
+      const [visible1, v1Raster] = camera.computePixelCoordinates(v1World);
+      const [visible2, v2Raster] = camera.computePixelCoordinates(v2World);
 
       const path = new Path({
         strokeColor: 'black',

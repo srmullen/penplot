@@ -1,7 +1,9 @@
 import paper, { Point, Path } from 'paper';
+import Delaunator from 'delaunator';
 import { flatten } from 'lodash';
 import { map, reduce } from 'common/iterable';
 import math from 'mathjs';
+import please from 'pleasejs';
 import uuid from 'uuid/v1';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
@@ -20,15 +22,11 @@ window.gauss = gauss;
 
 class LineSegment {
 
-  // static segments = {};
-
   constructor (p1, p2) {
-    // this.id = uuid();
     this.id = LineSegment.genID(p1, p2);
     this.points = [p1, p2];
     this[0] = p1;
     this[1] = p2;
-    // LineSegment.segments[this.id] = this;
   }
 
   static of (p1, p2) {
@@ -82,17 +80,13 @@ class Triangle {
     const reflectionPoint = surface[0].add(surface[1].subtract(surface[0]).divide(2));
     const vec = reflectionPoint.subtract(mirrorPoint).multiply(2);
     const newPoint = mirrorPoint.add(vec);
-    // const triangle = map(tri, segment => map(segment, p => new Point(p)));
-    // triangle[(segment + 1) % 3][1] = newPoint;
-    // triangle[(segment + 2) % 3][0] = newPoint;
-    // return triangle;
 
     switch (segment) {
       case 0:
         return Triangle.of(surface[0], surface[1], newPoint);
-      case 1:
-        return Triangle.of(surface[1], newPoint, surface[0]);
       case 2:
+        return Triangle.of(surface[1], newPoint, surface[0]);
+      case 1:
         return Triangle.of(newPoint, surface[0], surface[1]);
     }
   }
@@ -103,8 +97,8 @@ const subdivide = {
     const [s1, s2, s3] = triangle;
     const [opp,] = triangle[segment];
     const p = s1[0].add(segmentVector(s1).divide(2));
-    const t1 = [[opp, s1[0]], [s1[0], p], [p, opp]];
-    const t2 = [[opp, s1[1]], [s1[1], p], [p, opp]];
+    const t1 = Triangle.of(opp, s1[0], p);
+    const t2 = Triangle.of(opp, s1[1], p);
     return [t1, t2];
   },
 
@@ -126,9 +120,6 @@ function segmentVector ([p1, p2]) {
 function segmentLength (segment) {
   return segmentVector(segment).length;
 }
-
-// triangleRow();
-randomizedSplitting();
 
 function randomizedSplitting () {
   const props = {
@@ -206,7 +197,9 @@ function recursiveSubdivide (subdivide, triangle, stop = () => true, depth = 0) 
 }
 
 function triangleRow () {
-  const tris = createTriangleRow(15, [10, 10]).map(tri => recursiveSubdivide(subdivide.half, tri, math.randomInt(2, 10)));
+  const stop = (depth) => depth > math.randomInt(2, 10);
+  // const stop = (depth) => depth > 6;
+  const tris = createTriangleRow(15, [10, 10]).map(tri => recursiveSubdivide(subdivide.half, tri, stop));
   drawTriangles(flatten(tris));
 
   function createTriangleRow (count, point, hyp=100, adj=100) {
@@ -228,11 +221,98 @@ function drawTriangles(tris) {
   }, tri));
 }
 
-function triangle (x, y, baseWidth=100, height=100) {
-  const p1 = new Point(x, y);
-  const p2 = p1.add([baseWidth, 0]);
-  const p3 = p1.add(baseWidth/2, height);
-  return [[p1, p2], [p2, p3], [p3, p1]];
+function delaunayTriangulation () {
+  const props = {
+    seed: 0,
+    n_points: 100,
+    draw_points: false,
+    run
+  };
+  const gui = new dat.GUI();
+  gui.add(props, 'seed');
+  gui.add(props, 'n_points');
+  gui.add(props, 'draw_points');
+  gui.add(props, 'run');
+
+  run();
+
+  function run () {
+    paper.project.clear();
+    const points = [];
+
+    if (props.seed) {
+      math.config({randomSeed: props.seed});
+    }
+
+    for (let i = 0; i < props.n_points; i++) {
+      const point = [math.random(width), math.random(height)];
+      points.push(point);
+      if (props.draw_points) {
+        Path.Circle({
+          center: point,
+          radius: 5,
+          fillColor: 'red'
+        });
+      }
+    }
+    const delaunay = Delaunator.from(points);
+    // drawEdges(points, delaunay);
+    const triangles = delaunayToTriagles(points, delaunay);
+    triangles.map(drawTriangle);
+  }
+
+  function nextHalfEdge (e) {
+    return (e % 3 === 2) ? e - 2 : e + 1;
+  }
+
+  function prevHalfEdge (e) {
+    return (e % 3 === 0 ) ? e + 2 : e - 1;
+  }
+
+  function edgesOfTriangle (t) {
+    const i = 3 * t;
+    return [i, i + 1, i + 2];
+  }
+
+  function pointsOfTriangle (delaunay, t) {
+    return edgesOfTriangle(t).map(e => delaunay.triangles[e]);
+  }
+
+  function delaunayToTriagles (points, delaunay) {
+    const triangles = [];
+    for (let i = 0; i < delaunay.triangles.length / 3; i++) {
+      const [i1, i2, i3] = pointsOfTriangle(delaunay, i);
+      const tri = Triangle.of(
+        new Point(points[i1]),
+        new Point(points[i2]),
+        new Point(points[i3])
+      );
+      triangles.push(tri);
+    }
+    return triangles;
+  }
+
+  function drawTriangle (triangle) {
+    new Path({
+      segments: triangle.points,
+      fillColor: please.make_color(),
+      closed: true
+    });
+  }
+
+  function drawEdges (points, delaunay) {
+    for (let i = 0; i < delaunay.trianglesLen; i++) {
+      const from = points[delaunay.triangles[i]];
+      const to = points[delaunay.triangles[nextHalfEdge(i)]];
+      if (i > delaunay.halfedges[i]) {
+        new Path.Line({
+          strokeColor: 'black',
+          from,
+          to
+        });
+      }
+    }
+  }
 }
 
 // TODO: Turn subdivided triangles to 3d and transform z with noise.
@@ -246,3 +326,7 @@ function drawSegment ([from, to]) {
     strokeColor: 'black'
   });
 }
+
+// triangleRow();
+// randomizedSplitting();
+delaunayTriangulation();
