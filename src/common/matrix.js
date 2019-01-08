@@ -1,7 +1,31 @@
 import math, { random, matrix } from 'mathjs';
 
+const handler = {
+  get (target, name) {
+    switch (name) {
+      case 'x':
+        return target.get([0]);
+      case 'y':
+        return target.get([1]);
+      case 'z':
+        return target.get([2]);
+      case 'w':
+        return target.get([3]);
+      case '0':
+        return target.get([0]);
+      case '1':
+        return target.get([1]);
+      case '2':
+        return target.get([2]);
+      case '3':
+        return target.get([3]);
+      default:
+        return target[name];
+    }
+  }
+};
 export function vec3 (x, y, z, w=1) {
-  return matrix([x, y, z, w]);
+  return new Proxy(matrix([x, y, z, w]), handler);
 }
 
 /**
