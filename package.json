@@ -14,6 +14,7 @@
     "babel": "^6.23.0",
     "body-parser": "^1.18.3",
     "body-parser-xml": "^1.1.0",
+    "brain.js": "^1.6.1",
     "dat.gui": "^0.7.3",
     "delaunator": "^3.0.2",
     "express": "^4.16.4",
@@ -24,13 +25,14 @@
     "mathjs": "^5.2.3",
     "noisejs": "^2.1.0",
     "pako": "^1.0.7",
+    "papaparse": "^4.6.2",
     "paper": "0.11.8",
     "pleasejs": "^0.4.2",
     "polybooljs": "^1.2.0",
     "uuid": "^3.3.2",
     "webpack": "^4.25.1",
     "webpack-cli": "^3.1.2",
-    "webpack-dev-server": "^3.1.10"
+    "webpack-dev-server": "^3.1.14"
   },
   "devDependencies": {
     "@babel/core": "^7.1.6",
