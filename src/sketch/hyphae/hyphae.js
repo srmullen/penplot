@@ -56,6 +56,7 @@ function placedRoots () {
   gui.add(props, 'rotationMax');
   gui.add(props, 'depth');
   gui.add(props, 'boundaryRadius');
+  gui.add(props, 'roots').step(1);
   gui.add(props, 'run');
 
   let group = new Group();
@@ -67,24 +68,22 @@ function placedRoots () {
       math.config({randomSeed: props.seed});
     }
 
-    // const fns = {
-    //   getRadius: () => props.nodeRadius,
-    //   getNumBranches: () => props.nodeBranches
-    // };
 
+    const center = new Point(width / 2, height / 2);
     const fns = {
       getRadius: () => random(props.radiusMin, props.radiusMax),
       getNumBranches: () => randomInt(props.branchesMin, props.branchesMax),
       withinBoundary: (point) => {
-        const center = new Point(width / 2, height / 2);
-        return center.getDistance(point) < props.boundaryRadius;
+        // return withinCircle(center, props.boundaryRadius, point);
+        return withinRectangle(100, 100, width - 200, height - 200, point);
       },
       rotation: () => {
         return radiansToDegrees(random(props.rotationMin, props.rotationMax));
       }
     };
 
-    const roots = spacedRoots(25, fns.getRadius);
+    // const roots = spacedRoots(25, fns.getRadius);
+    const roots = randomRoots(props.roots, fns);
     let done = false;
     group = new Group();
     const branches = [];
@@ -99,10 +98,27 @@ function placedRoots () {
   run();
 }
 
-function randomRoots () {
-  for (let i = 0; i < props.roots; i++) {
-    const n1 = new Node(new Point(width/2 - pointDist, height/2 - pointDist), random2D(), fns.getRadius());
+function withinCircle (center, radius, point) {
+  return center.getDistance(point) < radius;
+}
+
+function withinRectangle (top, left, width, height, point) {
+  const bottom = top + height;
+  const right = left + width;
+  const x = point.x;
+  const y = point.y;
+  return !(x < left || x > right || y < top || y > bottom);
+}
+
+function randomRoots (nRoots = 4, {getRadius, withinBoundary}) {
+  const roots = [];
+  while (roots.length < nRoots) {
+    const point = new Point(random(0, width), random(0, height));
+    if (withinBoundary(point)) {
+      roots.push(new Node(point, random2D(), getRadius()));
+    }
   }
+  return roots;
 }
 
 function spacedRoots (pointDist = 25, getRadius) {
