@@ -1,4 +1,5 @@
 import paper, { Point, Path, Group } from 'paper';
+import { sortBy } from 'lodash';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import { saveAsSVG, intersects, radiansToDegrees, gauss } from 'common/utils';
 import math, { random, randomInt } from 'mathjs';
@@ -16,9 +17,10 @@ function Node (pos, direction, radius) {
   this.radius = radius;
 }
 
-function Branch (start, end) {
+function Branch (start, end, treeId) {
   this.start = start;
   this.end = end;
+  this.treeId = treeId;
 }
 
 Branch.prototype.show = function () {
@@ -29,7 +31,7 @@ Branch.prototype.show = function () {
   });
 }
 
-function placedRoots () {
+function start () {
   const props = {
     seed: 0,
     radiusMin: 10,
@@ -61,8 +63,10 @@ function placedRoots () {
 
   let group = new Group();
 
+  let interval = null;
   function run () {
     group.remove();
+    clearInterval(interval);
 
     if (props.seed) {
       math.config({randomSeed: props.seed});
@@ -85,17 +89,39 @@ function placedRoots () {
     // const roots = spacedRoots(25, fns.getRadius);
     const roots = randomRoots(props.roots, fns);
     let done = false;
-    group = new Group();
+    // group = new Group();
+    group = null;
     const branches = [];
-    const trees = roots.map(root => treeGen(root, props.depth, branches, fns, group));
+    const trees = roots.map((root, i) => treeGen(root, props.depth, branches, fns, group, i+1));
     while (!done) {
       const nexts = trees.map(tree => tree.next());
       done = nexts.every(({done}) => done);
     }
     console.log("Done");
+
+    const animation = animateBranchDrawing(sortBy(branches, branch => branch.treeId));
+    interval = animation.interval;
+    group = animation.group;
   }
 
   run();
+}
+
+function animateBranchDrawing (branches, rate = 10) {
+  let bn = 0;
+  const group = new Group();
+  const interval = setInterval(() => {
+    if (branches[bn]) {
+      group.addChild(branches[bn].show());
+      ++bn;
+    } else {
+      clearInterval(interval);
+    }
+  }, rate);
+  return {
+    interval,
+    group
+  };
 }
 
 function withinCircle (center, radius, point) {
@@ -134,12 +160,12 @@ function random2D () {
   return new Point(random(-1, 1), random(-1, 1)).normalize();
 }
 
-function* treeGen (node, depth, branches, fns, group) {
+function* treeGen (node, depth, branches, fns, group, treeId) {
   const {getRadius, getNumBranches, withinBoundary, rotation} = fns;
   const layer = [];
   const nbranches = getNumBranches();
   for (let i = 0; i < nbranches; i++) {
-    const b = branch(node, branches, getRadius, rotation);
+    const b = branch(node, branches, getRadius, rotation, treeId);
     if (b) {
       if (group) {
         group.addChild(b.show());
@@ -154,13 +180,13 @@ function* treeGen (node, depth, branches, fns, group) {
     for (let i = 0; i < layer.length; i++) {
       const branch = layer[i];
       if (withinBoundary(branch.end.pos)) {
-        yield* treeGen(branch.end, depth-1, branches, fns, group);
+        yield* treeGen(branch.end, depth-1, branches, fns, group, treeId);
       }
     }
   }
 }
 
-function branch (node, branches, getRadius, rotation) {
+function branch (node, branches, getRadius, rotation, treeId) {
   // Randomly adjust the direction slightly.
   // let direction = Vector.fromAngle(node.direction.heading() + rotation());
   let direction = new Point({
@@ -176,11 +202,11 @@ function branch (node, branches, getRadius, rotation) {
     );
   });
   if (!intersections.length || !intersections.some(i => i)) {
-    return new Branch(node, new Node(branchEnd, direction, getRadius(node.radius, direction)));
+    return new Branch(node, new Node(branchEnd, direction, getRadius(node.radius, direction)), treeId);
   }
 }
 
-placedRoots();
+start();
 
 window.saveAsSVG = (name) => {
   timer(() => saveAsSVG(paper.project, name));
