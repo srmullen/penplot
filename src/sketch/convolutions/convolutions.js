@@ -43,18 +43,60 @@ const blur = [
   0.0625, 0.125, 0.0625
 ];
 
-const custom = [
+const custom1 = [
   0, 0, 0,
   0, 1, 0,
   0, 0, 0
 ];
 
-const kernels = { identity, leftneg, rightneg, emboss, blur, custom };
+const custom2 = [
+  0, 0, 0,
+  0, 1, 0,
+  0, 0, 0
+];
+
+const custom3 = [
+  0, 0, 0,
+  0, 1, 0,
+  0, 0, 0
+];
+
+const custom4 = [
+  0, 0, 0,
+  0, 1, 0,
+  0, 0, 0
+];
+
+const outline = [
+  -1, -1, -1,
+  -1,  8, -1,
+  -1, -1, -1
+];
+
+const kernels = {
+  identity,
+  leftneg,
+  rightneg,
+  emboss,
+  blur,
+  outline,
+  custom1,
+  custom2,
+  custom3,
+  custom4,
+};
+
+const kernelNames = [
+  'identity', 'leftneg', 'rightneg', 'emboss', 'blur', 'outline', 'custom1', 'custom2', 'custom3', 'custom4'
+];
 
 function start () {
   const raster = new Raster(img);
   const props = {
-    kernel: 'identity'
+    red: 'identity',
+    green: 'identity',
+    blue: 'identity',
+    alpha: 'identity',
   }
   const gui = new dat.GUI();
 
@@ -78,7 +120,7 @@ function start () {
       return [r, g, b, a];
     }, {returnType: 'Array(4)'});
 
-    const render = gpu.createKernel(function (kernel, data, width, height) {
+    const render = gpu.createKernel(function (redKernel, greenKernel, blueKernel, alphaKernel, data, width, height) {
       const nx = this.thread.x - 1;
       const px = this.thread.x + 1;
       const ny = this.thread.y - 1;
@@ -94,85 +136,82 @@ function start () {
       let p6 = getPixel(size, nx, py);
       let p7 = getPixel(size, this.thread.x, py);
       let p8 = getPixel(size, px, py);
-      const red = p0[0] * kernel[0] +
-        p1[0] * kernel[1] +
-        p2[0] * kernel[2] +
-        p3[0] * kernel[3] +
-        p4[0] * kernel[4] +
-        p5[0] * kernel[5] +
-        p6[0] * kernel[6] +
-        p7[0] * kernel[7] +
-        p8[0] * kernel[8];
+      const red = p0[0] * redKernel[0] +
+        p1[0] * redKernel[1] +
+        p2[0] * redKernel[2] +
+        p3[0] * redKernel[3] +
+        p4[0] * redKernel[4] +
+        p5[0] * redKernel[5] +
+        p6[0] * redKernel[6] +
+        p7[0] * redKernel[7] +
+        p8[0] * redKernel[8];
 
-      const green = p0[1] * kernel[0] +
-        p1[1] * kernel[1] +
-        p2[1] * kernel[2] +
-        p3[1] * kernel[3] +
-        p4[1] * kernel[4] +
-        p5[1] * kernel[5] +
-        p6[1] * kernel[6] +
-        p7[1] * kernel[7] +
-        p8[1] * kernel[8];
+      const green = p0[1] * greenKernel[0] +
+        p1[1] * greenKernel[1] +
+        p2[1] * greenKernel[2] +
+        p3[1] * greenKernel[3] +
+        p4[1] * greenKernel[4] +
+        p5[1] * greenKernel[5] +
+        p6[1] * greenKernel[6] +
+        p7[1] * greenKernel[7] +
+        p8[1] * greenKernel[8];
 
-      const blue = p0[2] * kernel[0] +
-        p1[2] * kernel[1] +
-        p2[2] * kernel[2] +
-        p3[2] * kernel[3] +
-        p4[2] * kernel[4] +
-        p5[2] * kernel[5] +
-        p6[2] * kernel[6] +
-        p7[2] * kernel[7] +
-        p8[2] * kernel[8];
+      const blue = p0[2] * blueKernel[0] +
+        p1[2] * blueKernel[1] +
+        p2[2] * blueKernel[2] +
+        p3[2] * blueKernel[3] +
+        p4[2] * blueKernel[4] +
+        p5[2] * blueKernel[5] +
+        p6[2] * blueKernel[6] +
+        p7[2] * blueKernel[7] +
+        p8[2] * blueKernel[8];
 
-      const alpha = p0[3] * kernel[0] +
-        p1[3] * kernel[1] +
-        p2[3] * kernel[2] +
-        p3[3] * kernel[3] +
-        p4[3] * kernel[4] +
-        p5[3] * kernel[5] +
-        p6[3] * kernel[6] +
-        p7[3] * kernel[7] +
-        p8[3] * kernel[8];
+      const alpha = p0[3] * alphaKernel[0] +
+        p1[3] * alphaKernel[1] +
+        p2[3] * alphaKernel[2] +
+        p3[3] * alphaKernel[3] +
+        p4[3] * alphaKernel[4] +
+        p5[3] * alphaKernel[5] +
+        p6[3] * alphaKernel[6] +
+        p7[3] * alphaKernel[7] +
+        p8[3] * alphaKernel[8];
 
       this.color(red, green, blue, alpha);
     }).setOutput([width, height])
       .setGraphical(true);
     const glcanvas = render.getCanvas();
     document.getElementsByTagName('body')[0].appendChild(glcanvas);
-    render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
+    run();
 
-    gui.add(props, 'kernel', ['identity', 'leftneg', 'rightneg', 'emboss', 'blur', 'custom']).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
+    gui.add(props, 'red', kernelNames).onChange(run);
+    gui.add(props, 'green', kernelNames).onChange(run);
+    gui.add(props, 'blue', kernelNames).onChange(run);
+    gui.add(props, 'alpha', kernelNames).onChange(run);
 
-    const folder = gui.addFolder('Custom');
-    folder.add(custom, '0').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '1').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '2').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '3').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '4').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '5').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '6').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '7').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
-    folder.add(custom, '8').step(0.01).onChange(() => {
-      render(kernels[props.kernel], imageData.data, imageData.width, imageData.height);
-    });
+    function createCustomFolder (kernel, name) {
+      const folder = gui.addFolder(name);
+      folder.add(kernel, '0').step(0.01).onChange(run);
+      folder.add(kernel, '1').step(0.01).onChange(run);
+      folder.add(kernel, '2').step(0.01).onChange(run);
+      folder.add(kernel, '3').step(0.01).onChange(run);
+      folder.add(kernel, '4').step(0.01).onChange(run);
+      folder.add(kernel, '5').step(0.01).onChange(run);
+      folder.add(kernel, '6').step(0.01).onChange(run);
+      folder.add(kernel, '7').step(0.01).onChange(run);
+      folder.add(kernel, '8').step(0.01).onChange(run);
+    }
+
+    createCustomFolder(custom1, 'Custom 1');
+    createCustomFolder(custom2, 'Custom 2');
+    createCustomFolder(custom3, 'Custom 3');
+    createCustomFolder(custom4, 'Custom 4');
+
+    function run () {
+      render(
+        kernels[props.red], kernels[props.green], kernels[props.blue], kernels[props.alpha],
+        imageData.data, imageData.width, imageData.height
+      );
+    }
   }
   window.raster = raster;
 }
