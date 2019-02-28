@@ -198,17 +198,11 @@ function curtain_in_wind () {
   }
 }
 
-function lineSpiral () {
-  // const [width, height] = STRATH_SMALL.landscape;
-  // const canvas = createCanvas(STRATH_SMALL.landscape);
-  const [width, height] = A4.landscape;
-  const canvas = createCanvas(A4.landscape);
-  paper.setup(canvas);
-
+function createGUI (opts={}) {
   const props = {
     seed: 0,
     // seed: 601,
-    root: [10, height/2],
+    root: [10, opts.height/2],
     rotateMin: -1,
     rotateMax: 1,
     pointDist: 20,
@@ -216,10 +210,12 @@ function lineSpiral () {
     segmentLength: 5,
     nPaths: 10,
     smooth: true,
-    run
+    noiseRate: 0.01,
+    followAngle: 45
   };
 
   const gui = new dat.GUI();
+  gui.add(props, 'seed');
   gui.add(props, 'angle');
   gui.add(props, 'pointDist').step(0.1);
   gui.add(props, 'rotateMin');
@@ -227,7 +223,21 @@ function lineSpiral () {
   gui.add(props, 'segmentLength');
   gui.add(props, 'nPaths');
   gui.add(props, 'smooth');
-  gui.add(props, 'run');
+  gui.add(props, 'noiseRate');
+  gui.add(props, 'followAngle');
+
+  return { props, gui };
+}
+
+function lineSpiral () {
+  // const [width, height] = STRATH_SMALL.landscape;
+  // const canvas = createCanvas(STRATH_SMALL.landscape);
+  const [width, height] = A4.landscape;
+  const canvas = createCanvas(A4.landscape);
+  paper.setup(canvas);
+
+  const { props, gui } = createGUI({ height });
+  gui.add({run}, 'run');
 
   let group = new Group();
 
@@ -247,20 +257,26 @@ function lineSpiral () {
       noise.seed(seed);
     }
 
+    console.log(JSON.stringify(props));
+
     const opts = {
       inBounds: () => true,
       angle: props.angle,
       steps: 500,
       rotateMin: props.rotateMin,
       rotateMax: props.rotateMax,
-      length: props.segmentLength
+      length: props.segmentLength,
+      noiseRate: props.noiseRate
     };
 
     const paths = [noisePath(props.root, opts)];
     // const pointDist = (i) => 2 + i * 0.01;
     const pointDist = () => props.pointDist;
     for (let i = 0; i < props.nPaths; i++) {
-      paths.push(followPath(paths[i], {pointDist, angle: 45}));
+      paths.push(followPath(paths[i], {
+        pointDist,
+        angle: (i) => (props.followAngle * 0.01 * i) + props.followAngle
+      }));
     }
 
     const margin = 50;
@@ -281,6 +297,73 @@ function lineSpiral () {
     });
 
     group.addChildren(drawn);
+  }
+}
+
+function followHandDrawnPath () {
+  const [width, height] = A4.landscape;
+  const canvas = createCanvas(A4.landscape);
+  paper.setup(canvas);
+
+  const { props, gui } = createGUI({ height });
+
+  const paths = [];
+  const tool = new paper.Tool();
+  let path;
+  let group = new Group();
+  tool.onMouseDown = () => {
+    path = new Path();
+    path.strokeColor = 'black';
+  }
+
+  tool.onMouseDrag = (event) => {
+    path.add(event.point);
+  }
+
+  tool.onMouseUp = () => {
+    paths.push(path);
+    group.addChild(createFollowPaths(path));
+  }
+
+  function clear () {
+    group.remove();
+    group = new Group();
+  }
+
+  gui.add({clear}, 'clear');
+
+  function createFollowPaths (path) {
+    const group = new Group();
+
+    const paths = [path.segments.map(seg => seg.point)];
+    const pointDist = () => props.pointDist;
+    for (let i = 0; i < props.nPaths; i++) {
+      paths.push(followPath(paths[i], {
+        pointDist,
+        angle: (i) => (props.followAngle * 0.01 * i) + props.followAngle
+      }));
+    }
+
+    const margin = 50;
+    const clipped = clipBounds(p => {
+      return (p.x >= margin && p.x < width - margin && p.y >= margin && p.y < height - margin);
+    }, paths);
+
+    const drawn = clipped.map(path => {
+      const child = new Path({
+        strokeColor: 'black',
+        strokeWidth: 0.5,
+        segments: path
+      });
+      if (props.smooth) {
+        child.smooth();
+      }
+      return child;
+    });
+
+    group.addChildren(drawn);
+    group.addChild(path);
+    return group;
   }
 }
 
@@ -311,22 +394,24 @@ function noisePath (from, {
   return segments;
 }
 
-function followPath (path, {pointDist = () => 2, angle = 90} = {}) {
+function followPath (path, {pointDist = () => 2, angle = () => 90} = {}) {
   const segments = [];
 
   let vec;
+  console.log(path.length);
   for (let i = 1; i < path.length; i++) {
     vec = path[i].subtract(path[i-1]).normalize();
     const dist = pointDist(i);
-    let point = path[i-1].add(vec.rotate(angle).multiply(dist));
+    const theta = angle(i);
+    let point = path[i-1].add(vec.rotate(theta).multiply(dist));
     segments.push(point);
   }
 
   // last point
   const dist = pointDist(path.length-1);
-  let point = path[path.length-1].add(vec.rotate(angle).multiply(dist));
+  const theta = angle(path.length-1);
+  let point = path[path.length-1].add(vec.rotate(theta).multiply(dist));
   segments.push(point);
-
 
   return segments;
 }
@@ -367,7 +452,8 @@ function clipBounds (inBounds, paths) {
 
 // curtain_in_wind();
 // oliver();
-lineSpiral();
+// lineSpiral();
+followHandDrawnPath();
 
 window.saveAsSvg = function save (name) {
   saveAsSVG(paper.project, name);
