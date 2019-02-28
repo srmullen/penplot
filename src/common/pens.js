@@ -1,4 +1,5 @@
-import paper, { Layer } from 'paper';
+import paper, { Group, Layer, Color } from 'paper';
+import { isArray } from 'lodash';
 
 export const PRISMA05_RED = 'PRISMA05_RED';
 export const PRISMA05_GREEN = 'PRISMA05_GREEN';
@@ -22,50 +23,78 @@ export const prisma05 = [
 
 const PRISMA_STROKE_WIDTH = 2;
 
-export const info = {
+export const penInfo = {
   [PRISMA05_RED]: {
-    color: '#f00',
+    color: new Color('#f00'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_GREEN]: {
-    color: '#0f0',
+    color: new Color('#0f0'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_BLUE]: {
-    color: '#00f',
+    color: new Color('#00f'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_ORANGE]: {
-    color: '#ffa500',
+    color: new Color('#ffa500'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_PURPLE]: {
-    color: '#800080',
+    color: new Color('#800080'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_LBROWN]: {
-    color: '#b27300',
+    color: new Color('#b27300'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_DBROWN]: {
-    color: '#7f5200',
+    color: new Color('#7f5200'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
   [PRISMA05_BLACK]: {
-    color: '#000',
+    color: new Color('#000'),
     strokeWidth: PRISMA_STROKE_WIDTH
   },
 }
 
+export function info (pen) {
+  return penInfo[pen];
+}
+
 const layers = {};
+window.penLayers = layers;
 
 export function withPen (pen, fn) {
   const previousLayer = paper.project.activeLayer;
   if (!layers[pen]) {
     layers[pen] = new Layer({name: pen});
+    // layers[pen] = new Group({name: pen});
   }
   layers[pen].activate();
-  const ret = fn(info[pen]);
+  const ret = fn(info(pen));
+  // if (isArray(ret)) {
+  //   layers[pen].addChildren(ret);
+  // } else {
+  //   layers[pen].addChild(ret);
+  // }
   previousLayer.activate();
   return ret;
 };
+
+// export function withPen (pen, fn) {
+//   // const previousLayer = paper.project.activeLayer;
+//   if (!layers[pen]) {
+//     // layers[pen] = new Layer({name: pen});
+//     layers[pen] = new Group({name: pen});
+//   }
+//   // layers[pen].activate();
+//   const ret = fn(info(pen));
+//   if (isArray(ret)) {
+//     layers[pen].addChildren(ret);
+//   } else {
+//     layers[pen].addChild(ret);
+//   }
+//   // previousLayer.activate();
+//   return ret;
+// };

@@ -6,7 +6,7 @@ require('body-parser-xml')(bodyParser);
 const app = express();
 const port = 3000;
 
-app.use(bodyParser.json({limit: '1000kb'}));
+app.use(bodyParser.json({limit: '10000kb'}));
 
 app.get('/', (req, res) => res.send('Hello World!'));
 

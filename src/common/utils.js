@@ -1,6 +1,8 @@
 import axios from 'axios';
 import pako from 'pako';
 import { randomInt } from 'mathjs';
+import weightedRandom from 'weighted-random';
+import { isFunction } from 'lodash';
 
 // export function saveAsSVG (project, name='default') {
 //   console.log('Saving');
@@ -112,4 +114,21 @@ export function constrain (n, low, high) {
 
 export function choose (arr) {
   return arr[randomInt(arr.length)];
+}
+
+export function wchoose (weights, arr) {
+  const index = weightedRandom(weights);
+  return arr[index];
+}
+
+export function processOptions (options, input) {
+  const ret = {};
+  for (let name in options) {
+    if (isFunction(options[name])) {
+      ret[name] = options[name](input);
+    } else {
+      ret[name] = options[name];
+    }
+  }
+  return ret;
 }

@@ -1,21 +1,20 @@
-import paper, { Point, Path, Group } from 'paper';
+import paper, { Point, Path, Group, Raster } from 'paper';
 import { last, flatten, isFunction } from 'lodash';
 import please from 'pleasejs';
 import { Noise } from 'noisejs';
 import dat from 'dat.gui';
-import { STRATH_SMALL, createCanvas } from 'common/setup';
+import { STRATH_SMALL, createCanvas, loadImage } from 'common/setup';
 import {
   saveAsSVG, radiansToDegrees, choose, constrain
 } from 'common/utils';
+import * as flowfield from 'common/flowfield';
 import math, { random } from 'mathjs';
 import * as pens from 'common/pens';
+import img from 'images/oliver.jpeg';
+import regression from 'regression';
 
-const [width, height] = STRATH_SMALL.landscape;
-const canvas = createCanvas(STRATH_SMALL.landscape);
-
-paper.setup(canvas);
-window.paper = paper;
-window.math = math;
+// window.paper = paper;
+// window.math = math;
 
 const noise = new Noise();
 window.noise = noise;
@@ -36,13 +35,11 @@ const PEN_SET = [
 const H_MARGIN = 50;
 const V_MARGIN = 30;
 
-const LEFT_BOUNDARY = paper.view.bounds.left + H_MARGIN;
-const RIGHT_BOUNDARY = paper.view.bounds.right - H_MARGIN;
-const TOP_BOUNDARY = paper.view.bounds.top + V_MARGIN;
-const BOTTOM_BOUNDARY = paper.view.bounds.bottom - V_MARGIN;
-
 class Particle {
-  constructor ({pos, maxPoints = 20, maxSpeed = 2, pen=choose(pens.prisma05)}) {
+  constructor ({
+    pos, maxPoints = 20, maxSpeed = 2, pen=choose(pens.prisma05),
+    bounds = {}
+  }) {
     this.pos = new Point(pos);
     this.points = [this.pos];
     this.velocity = new Point(0, 0);
@@ -51,6 +48,7 @@ class Particle {
     this.maxPoints = maxPoints;
     this.dead = false;
     this.pen = pen;
+    this.bounds = bounds;
   }
 
   applyForce (force) {
@@ -62,9 +60,9 @@ class Particle {
     this.velocity = this.velocity.add(this.acceleration);
     this.velocity.length = this.maxSpeed;
     const pos = this.pos.add(this.velocity);
-    if (pos.x <= LEFT_BOUNDARY || pos.x >= RIGHT_BOUNDARY) {
+    if (pos.x <= this.bounds.left || pos.x >= this.bounds.right) {
       this.kill();
-    } else if (pos.y <= TOP_BOUNDARY || pos.y >= BOTTOM_BOUNDARY) {
+    } else if (pos.y <= this.bounds.top || pos.y >= this.bounds.bottom) {
       this.kill();
     } else if (this.points.length > this.maxPoints) {
       this.kill();
@@ -101,7 +99,7 @@ class Particle {
   static randomParticles (numParticles, opts) {
     const particles = [];
     for (let i = 0; i < numParticles; i++) {
-      const pos = [random(LEFT_BOUNDARY, RIGHT_BOUNDARY), random(TOP_BOUNDARY, BOTTOM_BOUNDARY)];
+      const pos = [random(opts.bounds.left, opts.bounds.right), random(opts.bounds.top, opts.bounds.bottom)];
       const pOpts = processOptions(opts, {pos});
       particles.push(new Particle({
         pos,
@@ -113,13 +111,13 @@ class Particle {
 
   static particleColumn (nParticles, xPos, opts) {
     const particles = [];
-    const step = (BOTTOM_BOUNDARY - TOP_BOUNDARY) / nParticles;
+    const step = (opts.bounds.bottom - opts.bounds.top) / nParticles;
     for (let i = 0; i < nParticles; i++) {
-      const x = constrain(xPos + random(-2, 2), LEFT_BOUNDARY, RIGHT_BOUNDARY);
+      const x = constrain(xPos + random(-2, 2), opts.bounds.left, opts.bounds.right);
       const y = constrain(
-        (TOP_BOUNDARY + step/2) + (i * step) + random(-2, 2),
-        TOP_BOUNDARY,
-        BOTTOM_BOUNDARY
+        (opts.bounds.top + step/2) + (i * step) + random(-2, 2),
+        opts.bounds.top,
+        opts.bounds.bottom
       );
       const pos = [x, y];
       const pOpts = processOptions(opts, {pos});
@@ -132,10 +130,10 @@ class Particle {
   }
 
   static particleColumns (nColumns = 30, particlesPerColumn = 20, opts) {
-    const step = (RIGHT_BOUNDARY - LEFT_BOUNDARY) / nColumns;
+    const step = (opts.bounds.right - opts.bounds.left) / nColumns;
     const particles = [];
     for (let i = 0; i < nColumns; i++) {
-      particles.push(this.particleColumn(particlesPerColumn, LEFT_BOUNDARY + (i * step), opts));
+      particles.push(this.particleColumn(particlesPerColumn, opts.bounds.left + (i * step), opts));
     }
     return flatten(particles);
   }
@@ -145,6 +143,21 @@ function basic () {
   // TODO:
   // 2. Adjust field vectors while running.
   // 4. Smoothing options
+
+  const [width, height] = STRATH_SMALL.landscape;
+  const canvas = createCanvas(STRATH_SMALL.landscape);
+  paper.setup(canvas);
+
+  const LEFT_BOUNDARY = paper.view.bounds.left + H_MARGIN;
+  const RIGHT_BOUNDARY = paper.view.bounds.right - H_MARGIN;
+  const TOP_BOUNDARY = paper.view.bounds.top + V_MARGIN;
+  const BOTTOM_BOUNDARY = paper.view.bounds.bottom - V_MARGIN;
+  const bounds = {
+    left: LEFT_BOUNDARY,
+    right: RIGHT_BOUNDARY,
+    top: TOP_BOUNDARY,
+    bottom: BOTTOM_BOUNDARY
+  };
 
   let particeles = [];
   const props = {
@@ -175,7 +188,8 @@ function basic () {
     random: () => {
       const opts = {
         maxPoints: props.max_points,
-        pen: ({pos}) => choosePen(PEN_SET, pos)
+        pen: ({pos}) => choosePen(PEN_SET, pos),
+        bounds
       };
       // const opts = {maxPoints: () => choose([10, 100])};
       return Particle.randomParticles(props.num_particles, opts);
@@ -184,7 +198,8 @@ function basic () {
       const { particle_columns, particlesPerColumn } = props.particle_column;
       const opts = {
         maxPoints: props.max_points,
-        pen: ({pos}) => choosePen(PEN_SET, pos)
+        pen: ({pos}) => choosePen(PEN_SET, pos),
+        bounds
       };
       return Particle.particleColumns(particle_columns, particlesPerColumn, opts);
     }
@@ -222,7 +237,7 @@ function basic () {
     fieldGroup.remove();
     const boxHeight = (BOTTOM_BOUNDARY - TOP_BOUNDARY) / props.rows;
     const boxWidth = (RIGHT_BOUNDARY - LEFT_BOUNDARY) / props.columns;
-    const field = createField(props.rows, props.columns, {noise_rate: props.noise_rate});
+    const field = flowfield.createField(props.rows, props.columns, {noise_rate: props.noise_rate});
     if (props.show_vectors) {
       fieldGroup = drawField(field, boxWidth, boxHeight);
     }
@@ -233,7 +248,7 @@ function basic () {
       particles.forEach(particle => {
         if (!particle.dead) {
           const {x, y} = particle.pos;
-          const vec = lookup(field, boxWidth, boxHeight, x, y);
+          const vec = flowfield.lookup(field, boxWidth, boxHeight, x - H_MARGIN, y - V_MARGIN);
           particle.applyForce(vec);
           particle.update();
           particle.draw();
@@ -269,37 +284,6 @@ function drawField (field, boxWidth, boxHeight) {
   return group;
 }
 
-function createField (rows, columns, {noise_rate = 0.01}) {
-  const field = [];
-  for (let i = 0; i < columns; i++) {
-    const column = [];
-    for (let j = 0; j < rows; j++) {
-      const vec = new Point({
-        // length: 1,
-        // angle: math.random(0, 360)
-        length: noise.simplex2(i * 0.1, j * 0.1),
-        angle: noise.simplex2(i * noise_rate, j * noise_rate) * 360
-      });
-      column.push(vec);
-    }
-    field.push(column);
-  }
-  return field;
-}
-
-function lookup (field, boxWidth, boxHeight, x, y) {
-  const column = Math.floor((x - H_MARGIN) / boxWidth);
-  const row = Math.floor((y - V_MARGIN) / boxHeight);
-  try {
-    return field[column][row];
-  } catch (e) {
-    console.log(x, y, column, row);
-    console.error("Not in Field");
-    // paper.view.onFrame = () => {}
-
-  }
-}
-
 // Pen Choice
 function choosePen (pens, pos, noiseRate = 0.001) {
   const x = pos[0] * noiseRate;
@@ -309,6 +293,21 @@ function choosePen (pens, pos, noiseRate = 0.001) {
 }
 
 function followMouse () {
+  const [width, height] = STRATH_SMALL.landscape;
+  const canvas = createCanvas(STRATH_SMALL.landscape);
+  paper.setup(canvas);
+
+  const LEFT_BOUNDARY = paper.view.bounds.left + H_MARGIN;
+  const RIGHT_BOUNDARY = paper.view.bounds.right - H_MARGIN;
+  const TOP_BOUNDARY = paper.view.bounds.top + V_MARGIN;
+  const BOTTOM_BOUNDARY = paper.view.bounds.bottom - V_MARGIN;
+  const bounds = {
+    left: LEFT_BOUNDARY,
+    right: RIGHT_BOUNDARY,
+    top: TOP_BOUNDARY,
+    bottom: BOTTOM_BOUNDARY
+  };
+
   const particles = [];
   for (let i = 0; i < 20; i++) {
     particles.push(new Particle({
@@ -337,6 +336,59 @@ function followMouse () {
   }
 }
 
+async function fromImage () {
+  const image = await loadImage(img);
+  const orientation = image.width > image.height ? STRATH_SMALL.landscape : STRATH_SMALL.portrait;
+  const [width, height] = orientation;
+  const canvas = createCanvas(orientation, {hidden: false});
+  paper.setup(canvas);
+  const raster = new Raster(img);
+  raster.onLoad = () => {
+    const scale = Math.max(width, height) / Math.max(raster.width, raster.height) * 0.8;
+    raster.setSize(raster.width * scale, raster.height * scale);
+    raster.translate(width/2, height/2);
+
+    const box = new Path.Rectangle({
+      from: [100, 200],
+      to: [200, 300]
+    });
+    kmeans(raster, box);
+  }
+
+  /**
+   * Find angle by getting average
+   */
+  function kmeans (raster, box) {
+    // Can I use linear regression to find edges in images?
+    const average = raster.getAverageColor(box);
+    box.fillColor = average;
+    const nCentroids = 2;
+    const centroids = [];
+    for (let i = 0; i < nCentroids; i++) {
+      centroids.push(new Point([random(box.bounds.left, box.bounds.right), random(box.bounds.top, box.bounds.bottom)]));
+    }
+
+    for (let i = 0; i < nCentroids; i++) {
+      new Path.Circle({
+        fillColor: 'red',
+        radius: 2,
+        center: centroids[i]
+      });
+    }
+
+    const centroidVector = centroids[1].subtract(centroids[0]);
+    const meanCenter = centroids[0].add(centroidVector.divide(2));
+    const perpendicular = centroidVector.normalize().rotate(90);
+    const boundaryLine = new Path.Line({
+      from: meanCenter.add(perpendicular.multiply(centroidVector.length)),
+      to: meanCenter.subtract(perpendicular.multiply(centroidVector.length)),
+      strokeColor: 'red'
+    });
+
+    // Now start moving the points.
+  }
+}
+
 function processOptions (options, input) {
   const ret = {};
   for (let name in options) {
@@ -349,5 +401,6 @@ function processOptions (options, input) {
   return ret;
 }
 
-basic();
+// basic();
 // followMouse();
+fromImage();

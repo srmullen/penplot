@@ -419,8 +419,8 @@ function testCameraControl () {
 
   paper.view.translate(width/2, height/2);
 
-  const size = 100;
-  const box = new Box(size, size, size, [0, 0, 500]);
+  const size = 2;
+  const box = new Box(size, size, size, [0, 0, 50]);
 
   const camera = new Camera(
     props.focalLength,
@@ -505,6 +505,13 @@ function withPinholeCamera () {
     translateX: 0,
     translateY: 0,
     translateZ: 0,
+    fromX: 0,
+    fromY: 0,
+    fromZ: 100,
+    toX: 0,
+    toY: 0,
+    toZ: 0,
+    look,
     run
   };
 
@@ -516,6 +523,14 @@ function withPinholeCamera () {
   // ]));
 
   const camera = new Camera(props);
+
+  look();
+
+  function look () {
+    const from = [camProps.fromX, camProps.fromY, camProps.fromZ];
+    const to = [camProps.toX, camProps.toY, camProps.toZ];
+    camera.look(from, to);
+  }
 
   const gui = new dat.GUI();
   gui.add(props, 'focalLength').onChange(focalLength => {
@@ -554,6 +569,30 @@ function withPinholeCamera () {
     camera.translate(0, 0, val);
     run();
   });
+  cameraFolder.add(camProps, 'fromX', -200, 200).step(1).onChange(val => {
+    look();
+    run();
+  });
+  cameraFolder.add(camProps, 'fromY', -200, 200).step(1).onChange(val => {
+    look();
+    run();
+  });
+  cameraFolder.add(camProps, 'fromZ', -200, 200).step(1).onChange(val => {
+    look();
+    run();
+  });
+  cameraFolder.add(camProps, 'toX', -10, 10).onChange(val => {
+    look();
+    run();
+  });
+  cameraFolder.add(camProps, 'toY', -10, 10).onChange(val => {
+    look();
+    run();
+  });
+  cameraFolder.add(camProps, 'toZ', -10, 10).onChange(val => {
+    look();
+    run();
+  });
 
   const size = 2;
   const box = new Box(size, size, size, [0, 0, 1]);
@@ -562,25 +601,31 @@ function withPinholeCamera () {
   //   // run();
   // }
 
-  // paper.view.translate(width/2, height/2);
   let group = new paper.Group();
 
   run();
 
   function run () {
     group.remove();
-    group = new paper.Group();
-    const points = Box.getVertices(box);
-    points.map(point => {
-      const [visible, coord] = camera.computePixelCoordinates(point);
-      console.log(coord);
-      group.addChild(new Path.Circle({
-        fillColor: 'red',
-        center: coord,
-        radius: 2
-      }));
-    });
+    group = outlineBox(box, camera);
   }
+}
+
+function outlineBox (box, camera) {
+  const planes = Object.values(Box.getPlanes(box)).map(plane => {
+    return plane.map(point => camera.computePixelCoordinates(point));
+  });
+  const group = new paper.Group();
+  for (let i = 0; i < planes.length; i++) {
+    const plane = planes[i];
+    const points = plane.map(([visible, mat]) => {
+      return mat;
+    });
+    const path = drawSolidPlane(points);
+    group.addChild(path);
+  }
+
+  return group;
 }
 
 // hatchedBoxExample();

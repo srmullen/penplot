@@ -1,9 +1,10 @@
 import paper, { Point, Path } from 'paper';
 import dat from 'dat.gui';
+import GPU from 'gpu.js';
 import Camera from 'common/Camera';
 import { STRATH_SMALL, createCanvas } from 'common/setup';
 import {
-  saveAsSVG, intersects, intersection, radiansToDegrees
+  saveAsSVG, intersects, intersection, radiansToDegrees, timer
 } from 'common/utils';
 import math, { random, matrix } from 'mathjs';
 import { vec3, rotationXMatrix, rotationYMatrix, rotationZMatrix } from 'common/matrix';
@@ -121,8 +122,8 @@ function depthBufferTest () {
       const xmax = math.max(xs);
       const ymax = math.max(ys);
       const area = edge(...points);
-      for (let y = ymin; y < ymax; y++) {
-        for (let x = xmin; x < xmax; x++) {
+      for (let y = ymin; y < ymax; y += 1) {
+        for (let x = xmin; x < xmax; x += 1) {
           const w0 = edge([x, y], p1, p2);
           const w1 = edge([x, y], p2, p0);
           const w2 = edge([x, y], p0, p1);
@@ -148,7 +149,7 @@ function depthBufferTest () {
         const y = Math.floor(i / width);
         const dot = new Path.Circle({
           fillColor: buffer[i].color,
-          radius: 1,
+          radius: 0.2,
           center: [x, y]
         });
         dots.push(dot);
@@ -241,5 +242,10 @@ function triangleArea (p1, p2, p3) {
 }
 
 window.triangleArea = triangleArea;
+
+function testGPU () {
+  const gpu = new GPU();
+  window.gpu = gpu;
+}
 
 depthBufferTest();

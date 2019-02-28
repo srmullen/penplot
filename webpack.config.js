@@ -40,14 +40,15 @@ module.exports = {
   resolve: {
     alias: {
       // paper: path.resolve(__dirname, 'src/paper-modified'),
-      common: path.resolve(__dirname, 'src/common')
+      common: path.resolve(__dirname, 'src/common'),
+      images: path.resolve(__dirname, 'src/images')
     }
   },
   module: {
     rules: [
       { test: /\.js$/, exclude: /node_modules/, loader: "babel-loader" },
       {
-        test: /\.(png|svg|jpg|gif)$/,
+        test: /\.(png|svg|jpg|jpeg|gif)$/,
         use: [
           'file-loader'
         ]

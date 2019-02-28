@@ -8,10 +8,11 @@ import { A4, STRATH_SMALL, createCanvas, loadImage } from 'common/setup';
 import { saveAsSVG, intersects, radiansToDegrees, gauss } from 'common/utils';
 import * as pens from 'common/pens';
 import GPU from 'gpu.js';
-// import img from './images/cocktail.jpg';
-// import img from './images/seville.jpg';
-import img from './images/burano.jpg';
-// import img from './images/library.jpg';
+// import img from 'images/cocktail.jpg';
+// import img from 'images/seville.jpg';
+// import img from 'images/burano.jpg';
+// import img from 'images/library.jpg';
+import img from 'images/oliver.jpeg';
 
 const leftneg = [
   -1, 0, 1,

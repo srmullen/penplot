@@ -1,24 +1,20 @@
-import paper, { Point, Path } from 'paper';
+import paper, { Point, Path, Raster } from 'paper';
 import Delaunator from 'delaunator';
 import { flatten } from 'lodash';
 import { map, reduce } from 'common/iterable';
 import math from 'mathjs';
 import please from 'pleasejs';
 import uuid from 'uuid/v1';
-import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
+import { A4, STRATH_SMALL, createCanvas, loadImage } from 'common/setup';
 import {
   saveAsSVG, intersects, intersection, radiansToDegrees, gauss, constrain
 } from 'common/utils';
 import * as dat from 'dat.gui';
+import img from 'images/oliver.jpeg';
 
-const paperSize = STRATH_SMALL.landscape;
-const [width, height] = paperSize;
-const canvas = createCanvas(paperSize);
-paper.setup(canvas);
-
-window.paper = paper;
-window.math = math;
-window.gauss = gauss;
+// window.paper = paper;
+// window.math = math;
+// window.gauss = gauss;
 
 class LineSegment {
 
@@ -122,6 +118,11 @@ function segmentLength (segment) {
 }
 
 function randomizedSplitting () {
+  const paperSize = STRATH_SMALL.landscape;
+  const [width, height] = paperSize;
+  const canvas = createCanvas(paperSize);
+  paper.setup(canvas);
+
   const props = {
     title: "triangle_subdivision",
     run,
@@ -197,6 +198,11 @@ function recursiveSubdivide (subdivide, triangle, stop = () => true, depth = 0) 
 }
 
 function triangleRow () {
+  const paperSize = STRATH_SMALL.landscape;
+  const [width, height] = paperSize;
+  const canvas = createCanvas(paperSize);
+  paper.setup(canvas);
+
   const stop = (depth) => depth > math.randomInt(2, 10);
   // const stop = (depth) => depth > 6;
   const tris = createTriangleRow(15, [10, 10]).map(tri => recursiveSubdivide(subdivide.half, tri, stop));
@@ -222,6 +228,11 @@ function drawTriangles(tris) {
 }
 
 function delaunayTriangulation () {
+  const paperSize = STRATH_SMALL.landscape;
+  const [width, height] = paperSize;
+  const canvas = createCanvas(paperSize);
+  paper.setup(canvas);
+
   const props = {
     seed: 0,
     n_points: 100,
@@ -269,29 +280,6 @@ function delaunayTriangulation () {
     return (e % 3 === 0 ) ? e + 2 : e - 1;
   }
 
-  function edgesOfTriangle (t) {
-    const i = 3 * t;
-    return [i, i + 1, i + 2];
-  }
-
-  function pointsOfTriangle (delaunay, t) {
-    return edgesOfTriangle(t).map(e => delaunay.triangles[e]);
-  }
-
-  function delaunayToTriagles (points, delaunay) {
-    const triangles = [];
-    for (let i = 0; i < delaunay.triangles.length / 3; i++) {
-      const [i1, i2, i3] = pointsOfTriangle(delaunay, i);
-      const tri = Triangle.of(
-        new Point(points[i1]),
-        new Point(points[i2]),
-        new Point(points[i3])
-      );
-      triangles.push(tri);
-    }
-    return triangles;
-  }
-
   function drawTriangle (triangle) {
     new Path({
       segments: triangle.points,
@@ -315,6 +303,116 @@ function delaunayTriangulation () {
   }
 }
 
+async function delaunayImage () {
+  const gui = new dat.GUI();
+  const image = await loadImage(img);
+  const orientation = image.width > image.height ? STRATH_SMALL.landscape : STRATH_SMALL.portrait;
+  const [width, height] = orientation;
+  const canvas = createCanvas(orientation, {hidden: false});
+  paper.setup(canvas);
+  const raster = new Raster(img);
+  raster.onLoad = () => {
+    const scale = Math.max(width, height) / Math.max(raster.width, raster.height) * 0.8;
+    raster.setSize(raster.width * scale, raster.height * scale);
+    raster.translate(raster.width/2, raster.height/2);
+
+    function drawTriangle (raster, triangle) {
+      const path = new Path({
+        segments: triangle.points,
+        closed: true
+      });
+      const color = raster.getAverageColor(path);
+      path.fillColor = color;
+      return path;
+    }
+
+    const runTriangulation = (points) => {
+      const delaunay = Delaunator.from(points);
+      // drawEdges(points, delaunay);
+      const triangles = delaunayToTriagles(points, delaunay);
+      return triangles.map(triangle => drawTriangle(raster, triangle));
+    }
+
+    // const points = getPoints(raster, 500);
+    const [points, pointPaths] = getPointsManually(gui, raster, runTriangulation);
+
+    gui.add({runTriangulation}, 'runTriangulation');
+  }
+
+  function getPointsManually (gui, raster, render) {
+    let points = [];
+    const pointPaths = [];
+    let paths = [];
+    paper.view.onMouseDown = (event) => {
+      const point = [event.point.x, event.point.y];
+      // pointPaths.push(new Path.Circle({
+      //   fillColor: 'red',
+      //   radius: 2,
+      //   center: event.point
+      // }));
+      points.push(point);
+      if (points.length > 2) {
+        paths.map(path => path.remove());
+        paths = render(points);
+      }
+    }
+
+    function clear () {
+      if (paths.length) {
+        paths.map(path => path.remove());
+        paths = [];
+        points = [];
+      }
+    }
+    gui.add({clear}, 'clear');
+    return [points, pointPaths];
+  }
+
+  function getPoints (raster, nPoints, grayMax = 0.3) {
+    // const nPoints = 5000;
+    const points = [];
+    let attempts = 0;
+    while (points.length < nPoints && !(attempts > 10000)) {
+      const point = [
+        // math.random(raster.bounds.left, raster.bounds.right),
+        // math.random(raster.bounds.top, raster.bounds.bottom)
+        math.random(raster.width),
+        math.random(raster.height)
+      ];
+      const pixel = raster.getPixel(point);
+      if (pixel.gray < grayMax) {
+        points.push(point);
+      }
+
+      attempts++;
+    }
+    return points;
+  }
+}
+
+function edgesOfTriangle (t) {
+  const i = 3 * t;
+  return [i, i + 1, i + 2];
+}
+
+function pointsOfTriangle (delaunay, t) {
+  return edgesOfTriangle(t).map(e => delaunay.triangles[e]);
+}
+
+function delaunayToTriagles (points, delaunay) {
+  const triangles = [];
+  for (let i = 0; i < delaunay.triangles.length / 3; i++) {
+    const [i1, i2, i3] = pointsOfTriangle(delaunay, i);
+    const tri = Triangle.of(
+      new Point(points[i1]),
+      new Point(points[i2]),
+      new Point(points[i3])
+    );
+    triangles.push(tri);
+  }
+  return triangles;
+}
+
 // TODO: Turn subdivided triangles to 3d and transform z with noise.
 function in3d () {
 
@@ -329,4 +427,5 @@ function drawSegment ([from, to]) {
 
 // triangleRow();
 // randomizedSplitting();
-delaunayTriangulation();
+// delaunayTriangulation();
+delaunayImage();
