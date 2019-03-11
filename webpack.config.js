@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['etchings'];
+const sketches = ['etchings', 'flow_fields'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};

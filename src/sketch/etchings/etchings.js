@@ -8,6 +8,8 @@ import { saveAsSVG, intersects, radiansToDegrees, gauss, choose, wchoose, proces
 import * as colors from 'common/color';
 import * as pens from 'common/pens';
 import img from 'images/oliver1.jpeg';
+import * as flowfield from 'common/flowfield';
+import { Particle } from 'common/flowfield';
 
 // const [width, height] = STRATH_SMALL.portrait;
 // const canvas = createCanvas(STRATH_SMALL.portrait);
@@ -211,7 +213,8 @@ function createGUI (opts={}) {
     nPaths: 10,
     smooth: true,
     noiseRate: 0.01,
-    followAngle: 45
+    followAngle: 45,
+    margin: 50
   };
 
   const gui = new dat.GUI();
@@ -225,6 +228,7 @@ function createGUI (opts={}) {
   gui.add(props, 'smooth');
   gui.add(props, 'noiseRate');
   gui.add(props, 'followAngle');
+  gui.add(props, 'margin');
 
   return { props, gui };
 }
@@ -263,19 +267,21 @@ function lineSpiral () {
       inBounds: () => true,
       angle: props.angle,
       steps: 500,
-      rotateMin: props.rotateMin,
-      rotateMax: props.rotateMax,
-      length: props.segmentLength,
-      noiseRate: props.noiseRate
+      length: ({step}) => props.segmentLength,
+      noiseRate: props.noiseRate,
+      rotate: ({point}) => {
+        return noise.simplex2(point.x * props.noiseRate, point.y * props.noiseRate) * math.random(props.rotateMin, props.rotateMax)
+      }
     };
 
     const paths = [noisePath(props.root, opts)];
-    // const pointDist = (i) => 2 + i * 0.01;
-    const pointDist = () => props.pointDist;
     for (let i = 0; i < props.nPaths; i++) {
+      // const pointDist = (i) => 2 + i * 0.01;
+      const pointDist = () => props.pointDist;
+      const angle = ({i}) => (props.followAngle * 0.01 * i) + props.followAngle;
       paths.push(followPath(paths[i], {
         pointDist,
-        angle: (i) => (props.followAngle * 0.01 * i) + props.followAngle
+        angle
       }));
     }
 
@@ -314,6 +320,7 @@ function followHandDrawnPath () {
   tool.onMouseDown = () => {
     path = new Path();
     path.strokeColor = 'black';
+    path.strokeWidth = 0.5;
   }
 
   tool.onMouseDrag = (event) => {
@@ -321,8 +328,11 @@ function followHandDrawnPath () {
   }
 
   tool.onMouseUp = () => {
-    paths.push(path);
-    group.addChild(createFollowPaths(path));
+    if (path.segments.length > 2) {
+      paths.push(path);
+      group.addChild(createFollowPaths(path, props));
+      group.addChild(createFollowPaths(path, Object.assign({}, props, {pointDist: -props.pointDist})));
+    }
   }
 
   function clear () {
@@ -332,14 +342,14 @@ function followHandDrawnPath () {
 
   gui.add({clear}, 'clear');
 
-  function createFollowPaths (path) {
+  function createFollowPaths (path, props) {
     const group = new Group();
 
     const paths = [path.segments.map(seg => seg.point)];
     const pointDist = () => props.pointDist;
     for (let i = 0; i < props.nPaths; i++) {
       paths.push(followPath(paths[i], {
-        pointDist,
+        pointDist: () => props.pointDist,
         angle: (i) => (props.followAngle * 0.01 * i) + props.followAngle
       }));
     }
@@ -367,24 +377,150 @@ function followHandDrawnPath () {
   }
 }
 
+function fromFlowField () {
+  const [width, height] = A4.landscape;
+  const canvas = createCanvas(A4.landscape);
+  paper.setup(canvas);
+
+  const props = {
+    seed: 0,
+    pointDist: 20,
+    nParticles: 4,
+    maxParticleSteps: 500,
+    nPaths: 10,
+    smooth: true,
+    showField: false,
+    noiseRate: 0.01,
+    followAngle: 45,
+    margin: 50
+  };
+
+  const gui = new dat.GUI();
+  gui.add(props, 'seed');
+  gui.add(props, 'pointDist').step(0.1);
+  gui.add(props, 'nParticles').step(1);
+  gui.add(props, 'maxParticleSteps').step(1);
+  gui.add(props, 'nPaths').step(1);
+  gui.add(props, 'noiseRate');
+  gui.add(props, 'followAngle');
+  gui.add(props, 'margin');
+  gui.add(props, 'smooth');
+  gui.add(props, 'showField');
+  gui.add({run}, 'run');
+
+  let group = new Group();
+  let field;
+
+  run();
+
+  function run () {
+    group.remove();
+    group = new Group();
+
+    if (props.seed) {
+      math.config({randomSeed: props.seed});
+      noise.seed(props.seed);
+    } else {
+      const seed = math.randomInt(1000);
+      console.log(seed);
+      math.config({randomSeed: seed});
+      noise.seed(seed);
+    }
+
+    console.log(JSON.stringify(props));
+
+    const nRows = 20;
+    const nColumns = 20;
+    const boxWidth = (width - (props.margin * 2)) / nColumns;
+    const boxHeight = (height - (props.margin * 2)) / nRows;
+    const length = ({i, j}) => noise.simplex2(i * 0.1, j * 0.1);
+    const angle = ({i, j}) => noise.simplex2(i * 0.01, j * 0.01) * 360;
+    field = flowfield.createField(nRows, nColumns, {angle, length});
+
+    if (props.showField) {
+      const fieldGroup = flowfield.drawField(field, boxWidth, boxHeight);
+      fieldGroup.translate(props.margin, props.margin);
+      group.addChild(fieldGroup);
+    }
+
+    const bounds = {
+      left: paper.view.bounds.left + props.margin,
+      right: paper.view.bounds.right - props.margin,
+      top: paper.view.bounds.top + props.margin,
+      bottom: paper.view.bounds.bottom - props.margin
+    };
+    const maxPoints = props.maxParticleSteps;
+    const particles = Particle.randomParticles(props.nParticles, {bounds, maxPoints});
+
+    for (let i = 0; i < maxPoints; i++) {
+      particles.forEach(particle => {
+        if (!particle.dead) {
+          const {x, y} = particle.pos;
+          const vec = flowfield.lookup(field, boxWidth, boxHeight, x - props.margin, y - props.margin);
+          particle.applyForce(vec);
+          particle.update();
+        }
+      });
+    }
+
+    const pathGroups = particles.map(particle => {
+      const paths = [particle.points];
+      for (let i = 0; i < props.nPaths; i++) {
+        const pointDist = () => props.pointDist;
+        const angle = ({i}) => (props.followAngle * 0.01 * i) + props.followAngle;
+        paths.push(followPath(paths[i], {
+          pointDist,
+          angle
+        }));
+      }
+      return paths;
+    });
+
+    const clipfn = p => {
+      return (p.x >= props.margin && p.x < width - props.margin && p.y >= props.margin && p.y < height - props.margin);
+    };
+
+    pathGroups.forEach(paths => {
+      const clipped = clipBounds(clipfn, paths);
+      const children = clipped.map(path => {
+        const child = new Path({
+          strokeColor: 'black',
+          strokeWidth: 0.5,
+          segments: path
+        });
+        if (props.smooth) {
+          child.smooth();
+        }
+        return child;
+      });
+      group.addChildren(children);
+    });
+  }
+}
+
+function scales () {
+  const [width, height] = A4.landscape;
+  const canvas = createCanvas(A4.landscape);
+  paper.setup(canvas);
+
+}
+
 function noisePath (from, {
   length = 2,
   angle = 45,
   inBounds = () => true,
   steps = 1000,
-  rotateMin = 0,
-  rotateMax = 1,
-  noiseRate = 0.01
+  rotate = () => 0
 } = {}) {
   let point = new Point(from);
   let step = 0;
   let vec = new Point({
-    length,
+    length: length({step}),
     angle
   });
   const segments = [];
   while (inBounds(point.x, point.y) && step < steps) {
-    vec = vec.rotate(noise.simplex2(point.x * noiseRate, point.y * noiseRate) * math.random(rotateMin, rotateMax));
+    vec = vec.rotate(rotate({point}));
     point = point.add(vec);
     segments.push(point);
 
@@ -394,22 +530,24 @@ function noisePath (from, {
   return segments;
 }
 
-function followPath (path, {pointDist = () => 2, angle = () => 90} = {}) {
+function followPath (path, {
+  pointDist = () => 2,
+  angle = () => 90
+} = {}) {
   const segments = [];
 
   let vec;
-  console.log(path.length);
   for (let i = 1; i < path.length; i++) {
     vec = path[i].subtract(path[i-1]).normalize();
-    const dist = pointDist(i);
-    const theta = angle(i);
+    const dist = pointDist({vec, i});
+    const theta = angle({vec, i});
     let point = path[i-1].add(vec.rotate(theta).multiply(dist));
     segments.push(point);
   }
 
   // last point
-  const dist = pointDist(path.length-1);
-  const theta = angle(path.length-1);
+  const dist = pointDist({vec, i: path.length-1});
+  const theta = angle({vec, i: path.length-1});
   let point = path[path.length-1].add(vec.rotate(theta).multiply(dist));
   segments.push(point);
 
@@ -453,7 +591,9 @@ function clipBounds (inBounds, paths) {
 // curtain_in_wind();
 // oliver();
 // lineSpiral();
-followHandDrawnPath();
+// followHandDrawnPath();
+// scales();
+fromFlowField();
 
 window.saveAsSvg = function save (name) {
   saveAsSVG(paper.project, name);

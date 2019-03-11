@@ -1,5 +1,5 @@
 import paper, { Point, Path, Group, Raster } from 'paper';
-import { last, flatten, isFunction } from 'lodash';
+import { last, isFunction } from 'lodash';
 import please from 'pleasejs';
 import { Noise } from 'noisejs';
 import dat from 'dat.gui';
@@ -8,6 +8,7 @@ import {
   saveAsSVG, radiansToDegrees, choose, constrain
 } from 'common/utils';
 import * as flowfield from 'common/flowfield';
+import { Particle } from 'common/flowfield';
 import math, { random } from 'mathjs';
 import * as pens from 'common/pens';
 import img from 'images/oliver.jpeg';
@@ -17,7 +18,6 @@ import regression from 'regression';
 // window.math = math;
 
 const noise = new Noise();
-window.noise = noise;
 
 // const PEN_SET = [pens.PRISMA05_ORANGE, pens.PRISMA05_LBROWN, pens.PRISMA05_DBROWN, pens.PRISMA05_PURPLE];
 // const PEN_SET = pens.prisma05;
@@ -35,108 +35,17 @@ const PEN_SET = [
 const H_MARGIN = 50;
 const V_MARGIN = 30;
 
-class Particle {
-  constructor ({
-    pos, maxPoints = 20, maxSpeed = 2, pen=choose(pens.prisma05),
-    bounds = {}
-  }) {
-    this.pos = new Point(pos);
-    this.points = [this.pos];
-    this.velocity = new Point(0, 0);
-    this.acceleration = new Point(0, 0);
-    this.maxSpeed = maxSpeed;
-    this.maxPoints = maxPoints;
-    this.dead = false;
-    this.pen = pen;
-    this.bounds = bounds;
+function drawParticle (particle) {
+  if (particle.path) {
+    particle.path.remove();
   }
-
-  applyForce (force) {
-    this.acceleration = this.acceleration.add(force);
-  }
-
-  // Apply the position from the accumulated forces and save the result.
-  update () {
-    this.velocity = this.velocity.add(this.acceleration);
-    this.velocity.length = this.maxSpeed;
-    const pos = this.pos.add(this.velocity);
-    if (pos.x <= this.bounds.left || pos.x >= this.bounds.right) {
-      this.kill();
-    } else if (pos.y <= this.bounds.top || pos.y >= this.bounds.bottom) {
-      this.kill();
-    } else if (this.points.length > this.maxPoints) {
-      this.kill();
-    } else {
-      this.pos = pos;
-      this.points.push(this.pos);
-      this.acceleration = this.acceleration.multiply(0);
-    }
-  }
-
-  kill () {
-    this.dead = true;
-    if (this.path) {
-      this.path.simplify();
-      this.path.smooth({type: 'geometric'});
-    }
-  }
-
-  path = null;
-
-  draw (pen) {
-    if (this.path) {
-      this.path.remove();
-    }
-    pens.withPen(this.pen, ({color, strokeWidth}) => {
-      this.path = new Path({
-        strokeColor: color,
-        segments: this.points,
-        strokeWidth
-      });
+  pens.withPen(particle.pen, ({color, strokeWidth}) => {
+    particle.path = new Path({
+      strokeColor: color,
+      segments: particle.points,
+      strokeWidth
     });
-  }
-
-  static randomParticles (numParticles, opts) {
-    const particles = [];
-    for (let i = 0; i < numParticles; i++) {
-      const pos = [random(opts.bounds.left, opts.bounds.right), random(opts.bounds.top, opts.bounds.bottom)];
-      const pOpts = processOptions(opts, {pos});
-      particles.push(new Particle({
-        pos,
-        ...pOpts
-      }));
-    }
-    return particles;
-  }
-
-  static particleColumn (nParticles, xPos, opts) {
-    const particles = [];
-    const step = (opts.bounds.bottom - opts.bounds.top) / nParticles;
-    for (let i = 0; i < nParticles; i++) {
-      const x = constrain(xPos + random(-2, 2), opts.bounds.left, opts.bounds.right);
-      const y = constrain(
-        (opts.bounds.top + step/2) + (i * step) + random(-2, 2),
-        opts.bounds.top,
-        opts.bounds.bottom
-      );
-      const pos = [x, y];
-      const pOpts = processOptions(opts, {pos});
-      particles.push(new Particle({
-        pos,
-        ...pOpts
-      }));
-    }
-    return particles;
-  }
-
-  static particleColumns (nColumns = 30, particlesPerColumn = 20, opts) {
-    const step = (opts.bounds.right - opts.bounds.left) / nColumns;
-    const particles = [];
-    for (let i = 0; i < nColumns; i++) {
-      particles.push(this.particleColumn(particlesPerColumn, opts.bounds.left + (i * step), opts));
-    }
-    return flatten(particles);
-  }
+  });
 }
 
 function basic () {
@@ -237,7 +146,9 @@ function basic () {
     fieldGroup.remove();
     const boxHeight = (BOTTOM_BOUNDARY - TOP_BOUNDARY) / props.rows;
     const boxWidth = (RIGHT_BOUNDARY - LEFT_BOUNDARY) / props.columns;
-    const field = flowfield.createField(props.rows, props.columns, {noise_rate: props.noise_rate});
+    const length = ({i, j}) => noise.simplex2(i * 0.1, j * 0.1);
+    const angle = ({i, j}) => noise.simplex2(i * 0.01, j * 0.01) * 360;
+    const field = flowfield.createField(props.rows, props.columns, {length, angle});
     if (props.show_vectors) {
       fieldGroup = drawField(field, boxWidth, boxHeight);
     }
@@ -251,7 +162,8 @@ function basic () {
           const vec = flowfield.lookup(field, boxWidth, boxHeight, x - H_MARGIN, y - V_MARGIN);
           particle.applyForce(vec);
           particle.update();
-          particle.draw();
+          // particle.draw();
+          drawParticle(particle);
         }
       });
     }
@@ -330,7 +242,8 @@ function followMouse () {
         vec.length = distance / 100;
         particle.applyForce(vec);
         particle.update();
-        particle.draw()
+        // particle.draw();
+        drawParticle(particle);
       }
     });
   }
@@ -401,6 +314,6 @@ function processOptions (options, input) {
   return ret;
 }
 
-// basic();
+basic();
 // followMouse();
-fromImage();
+// fromImage();
