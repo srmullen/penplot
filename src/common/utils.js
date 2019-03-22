@@ -112,6 +112,10 @@ export function constrain (n, low, high) {
   return Math.max(Math.min(n, high), low);
 }
 
+export function lerp (start, stop, amt) {
+  return amt * (stop - start) + start;
+}
+
 export function choose (arr) {
   return arr[randomInt(arr.length)];
 }
