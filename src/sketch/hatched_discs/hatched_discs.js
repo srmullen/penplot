@@ -18,10 +18,15 @@ const [width, height] = A4.portrait;
 const canvas = createCanvas(A4.portrait);
 paper.setup(canvas);
 
-const seed = randomInt(2000);
+// const seed = randomInt(2000);
 // const seed = 945;
+const seed = 833;
 console.log(seed);
 noise.seed(seed);
+math.config({randomSeed: seed});
+
+const RGB_PENS = [pens.PRISMA05_RED, pens.PRISMA05_GREEN, pens.PRISMA05_BLUE];
+const BROWN_PENS = [pens.PRISMA05_ORANGE, pens.PRISMA05_LBROWN, pens.PRISMA05_DBROWN];
 
 const DEFAULT_PROPS = {
   deform: 0,
@@ -188,16 +193,32 @@ class Disc {
       innerVec = innerVec.rotate(rotation);
     }
 
-    return pens.withPen(choose(pens.prisma05), ({strokeWidth, color}) => {
-      return hatches.map(([from, to]) => {
-        const hatch = new Path.Line({
-          from, to,
+    return pens.withPen(choose(BROWN_PENS), ({strokeWidth, color}) => {
+      return hatches.map((points) => {
+        const segments = handdrawn(points);
+        const path = new Path({
+          segments,
           strokeColor: color,
           strokeWidth
         });
       });
     });
   }
+}
+
+function handdrawn ([from, to], opts={}) {
+  const segments = [from];
+  const jitter = 2;
+  let vec = to.subtract(from);
+  const steps = Math.floor(vec.length / 11);
+  for (let i = 0; i < steps; i++) {
+    const dist = vec.length;
+    const step = vec.normalize().multiply(dist / (steps - i)).add(random(-jitter, jitter), random(-jitter, jitter));
+    const point = segments[i].add(step);
+    segments.push(point);
+    vec = to.subtract(point);
+  }
+  return segments;
 }
 
 // Draw bounds
@@ -226,12 +247,13 @@ function semiRandomDiscs () {
         radius: random(50, 170),
         deform: random(8, 30),
         sections: randomInt(3, 7),
-        noiseRate: 0.002
+        noiseRate: 0.001
       });
       disc.draw({bounds, discs});
       discs.push(disc);
     }
   }
+  bounds.remove();
 }
 semiRandomDiscs();
 
@@ -239,7 +261,7 @@ semiRandomDiscs();
 //   id: 1,
 //   center: new Point(width/2, height/2),
 //   radius: 200,
-//   deform: 25,
+//   deform: 25
 // });
 // const disc2 = new Disc({
 //   id: 2,
@@ -253,9 +275,9 @@ semiRandomDiscs();
 //   radius: 200,
 //   deform:15
 // });
-// disc1.draw({bounds: BOUNDS});
-// disc2.draw({bounds: BOUNDS, discs: [disc1]});
-// disc3.draw({bounds: BOUNDS, discs: [disc1, disc2]});
+// disc1.draw({bounds});
+// disc2.draw({bounds, discs: [disc1]});
+// disc3.draw({bounds, discs: [disc1, disc2]});
 
 window.saveAsSvg = function save (name) {
   saveAsSVG(paper.project, name);
