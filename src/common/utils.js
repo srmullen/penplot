@@ -136,3 +136,38 @@ export function processOptions (options, input) {
   }
   return ret;
 }
+
+/**
+ * Remove points from paths are out of bounds. If points out of bounds are in the middle of
+ * paths then break the path into seperate paths.
+ * @param inBounds {Function} - Returns true if point is in bounds, fasle otherwise.
+ * @param paths Point[][] - Array of point arrays.
+ */
+export function clipBounds (inBounds, paths) {
+  return paths.reduce((acc, path) => {
+    const clipped = [];
+    let np;
+    let continuation = false;
+    for (let i = 0, l = path.length; i < l; i++) {
+      const p = path[i];
+      if (inBounds(p)) {
+        if (!continuation) {
+          np = [];
+          continuation = true;
+        }
+        np.push(p);
+      } else {
+        if (continuation) {
+          continuation = false;
+          clipped.push(np);
+          np = [];
+        }
+      }
+    }
+    // Push np if last point in path isn't clipped.
+    if (np && np.length) {
+      clipped.push(np);
+    }
+    return acc.concat(clipped);
+  }, []);
+}

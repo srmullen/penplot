@@ -4,7 +4,9 @@ import { Noise } from 'noisejs';
 import math, { random, randomInt } from 'mathjs';
 import dat from 'dat.gui';
 import { A4, STRATH_SMALL, createCanvas, loadImage } from 'common/setup';
-import { saveAsSVG, intersects, radiansToDegrees, gauss, choose, wchoose, processOptions } from 'common/utils';
+import {
+  saveAsSVG, intersects, radiansToDegrees, gauss, choose, wchoose, processOptions, clipBounds
+} from 'common/utils';
 import * as colors from 'common/color';
 import * as pens from 'common/pens';
 import img from 'images/oliver1.jpeg';
@@ -552,40 +554,6 @@ function followPath (path, {
   segments.push(point);
 
   return segments;
-}
-
-/**
- * Remove points from paths are out of bounds. If points out of bounds are in the middle of
- * paths then break the path into seperate paths.
- * @param inBounds {Function} - Returns true if point is in bounds, fasle otherwise.
- * @param paths Point[][] - Array of point arrays.
- */
-function clipBounds (inBounds, paths) {
-  return paths.reduce((acc, path) => {
-    const clipped = [];
-    let np;
-    let continuation = false;
-    for (let i = 0, l = path.length; i < l; i++) {
-      const p = path[i];
-      if (inBounds(p)) {
-        if (!continuation) {
-          np = [];
-          continuation = true;
-        }
-        np.push(p);
-      } else {
-        if (continuation) {
-          continuation = false;
-          clipped.push(np);
-        }
-      }
-    }
-    // Push np if last point in path isn't clipped.
-    if (np && np.length) {
-      clipped.push(np);
-    }
-    return acc.concat(clipped);
-  }, []);
 }
 
 // curtain_in_wind();
