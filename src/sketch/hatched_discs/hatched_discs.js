@@ -8,6 +8,7 @@ import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import { saveAsSVG, intersects, radiansToDegrees, gauss, choose, wchoose, lerp, processOptions } from 'common/utils';
 import * as colors from 'common/color';
 import * as pens from 'common/pens';
+import { Disc } from 'common/Disc';
 
 window.math = math;
 window.paper = paper;
@@ -28,13 +29,6 @@ math.config({randomSeed: seed});
 const RGB_PENS = [pens.PRISMA05_RED, pens.PRISMA05_GREEN, pens.PRISMA05_BLUE];
 const BROWN_PENS = [pens.PRISMA05_ORANGE, pens.PRISMA05_LBROWN, pens.PRISMA05_DBROWN];
 
-const DEFAULT_PROPS = {
-  deform: 0,
-  noiseRate: 0.001,
-  nSteps: 100,
-  sections: 4
-};
-
 const H_MARGIN = 50;
 const V_MARGIN = 100;
 const BOUNDS = {
@@ -44,87 +38,7 @@ const BOUNDS = {
   right: width - H_MARGIN
 };
 
-class Disc {
-  constructor (props) {
-    this.props = Object.assign({}, DEFAULT_PROPS, props);
-  }
-
-  contains (point) {
-    const vec = point.subtract(this.props.center);
-    const boundingPoint = this.getPoint(vec.normalize().multiply(this.props.radius));
-    const boundingVec = boundingPoint.subtract(this.props.center);
-    return vec.length <= boundingVec.length;
-  }
-
-  /**
-   * Get the point on the circle at the given angle.
-   * @param angle - Angle in degrees.
-   */
-  getPoint (vec) {
-    // get the point on a regular circle.
-    const cpoint = this.props.center.add(vec);
-    // use noise to offset the point.
-    const point = cpoint.add(
-      lerp(-this.props.deform, this.props.deform, noise.simplex2(cpoint.x * this.props.noiseRate, cpoint.y * this.props.noiseRate))
-    );
-    return point;
-  }
-
-  getIntersections (path) {
-    const [boundary] = this.outlineSection(this.props.radius, [], {clip: false});
-    return boundary.getIntersections(path);
-  }
-
-  /**
-   * @param disc - Array of discs lying above this one.
-   */
-  draw ({bounds, discs=[]} = {}) {
-    this.group = new Group();
-    const radiusStep = this.props.radius / this.props.sections;
-    let radius = radiusStep;
-    let prevRadius = radiusStep / 3;
-    for (let i = 1; i <= this.props.sections; i++) {
-      radius = i * radiusStep;
-      // this.group.addChildren(this.outlineSection(radius, discs, {strokeColor: 'black'}));
-      this.group.addChildren(this.drawHatches(radius, prevRadius, discs, bounds));
-      prevRadius = radius;
-    }
-  }
-
-  outlineSection (radius, discs, {strokeColor = null, clip=true}={}) {
-    const {center, deform, nSteps, noiseRate} = this.props;
-    const segments = [];
-    let vec = new Point({
-      length: radius,
-      angle: 0
-    });
-
-    const rotation = 360 / nSteps;
-    let section = [];
-    for (let i = 0; i <= nSteps; i++) {
-      const point = this.getPoint(vec);
-      if (clip && (!inBounds(point) || discs.some(disc => disc.contains(point)))) {
-        if (section.length) {
-          segments.push(section);
-          section = [];
-        }
-        vec = vec.rotate(rotation);
-      } else {
-        section.push(point);
-        vec = vec.rotate(rotation);
-      }
-    }
-    if (section.length) {
-      segments.push(section);
-    }
-
-    return segments.map(seg => new Path({
-      segments: seg,
-      strokeColor,
-      closed: false
-    }));
-  }
-
+class HatchedDisc extends Disc {
   /**
    * @param section {Number} - number represention section where 1 is the innermost section.
    */
@@ -204,7 +118,24 @@ class Disc {
       });
     });
   }
+
+  /**
+   * @param disc - Array of discs lying above this one.
+   */
+  draw ({bounds, discs=[]} = {}) {
+    this.group = new Group();
+    const radiusStep = this.props.radius / this.props.sections;
+    let radius = radiusStep;
+    let prevRadius = radiusStep / 3;
+    for (let i = 1; i <= this.props.sections; i++) {
+      radius = i * radiusStep;
+      // this.group.addChildren(this.outlineSection(radius, discs, {strokeColor: 'black', inBounds}));
+      this.group.addChildren(this.drawHatches(radius, prevRadius, discs, bounds));
+      prevRadius = radius;
+    }
+  }
 }
+
 
 function handdrawn ([from, to], opts={}) {
   const segments = [from];
@@ -242,13 +173,13 @@ function semiRandomDiscs () {
       const y = i * rowStep;
       const x = j * colStep;
       const center = new Point(width - x, height - y).add(random(-40, 40), random(-40, 40));
-      const disc = new Disc({
+      const disc = new HatchedDisc({
         center,
         radius: random(50, 170),
         deform: random(8, 30),
         sections: randomInt(3, 7),
         noiseRate: 0.001
-      });
+      }, (...args) => noise.simplex2(...args));
       disc.draw({bounds, discs});
       discs.push(disc);
     }

@@ -23,6 +23,53 @@ export const prisma05 = [
 
 const PRISMA_STROKE_WIDTH = 2;
 
+// Artist's loft
+// FIXME: Should maybe make pens and stroketype seperate.
+export const AL_N2_BRUSH = 'AL_N2_BRUSH';
+export const AL_N3_BRUSH = 'AL_N3_BRUSH';
+export const AL_N5_BRUSH = 'AL_N5_BRUSH';
+export const AL_N6_BRUSH = 'AL_N6_BRUSH';
+export const AL_N8_BRUSH = 'AL_N8_BRUSH';
+export const AL_N10_BRUSH = 'AL_N10_BRUSH';
+
+export const AL_N2_FINE = 'AL_N2_FINE';
+export const AL_N3_FINE = 'AL_N3_FINE';
+export const AL_N5_FINE = 'AL_N5_FINE';
+export const AL_N6_FINE = 'AL_N6_FINE';
+export const AL_N8_FINE = 'AL_N8_FINE';
+export const AL_N10_FINE = 'AL_N10_FINE';
+
+export const AL_N2_FAT = 'AL_N2_FAT';
+export const AL_N3_FAT = 'AL_N3_FAT';
+export const AL_N5_FAT = 'AL_N5_FAT';
+export const AL_N6_FAT = 'AL_N6_FAT';
+export const AL_N8_FAT = 'AL_N8_FAT';
+export const AL_N10_FAT = 'AL_N10_FAT';
+
+// Stabilo
+const STABILO_88_STROKE_WIDTH = 1;
+export const STABILO_88_44 = 'STABILO_88_44';
+export const STABILO_88_33 = 'STABILO_88_33';
+export const STABILO_88_43 = 'STABILO_88_43';
+export const STABILO_88_36 = 'STABILO_88_36';
+export const STABILO_88_53 = 'STABILO_88_53';
+export const STABILO_88_63 = 'STABILO_88_63';
+
+export const STABILO_88_54 = 'STABILO_88_54';
+export const STABILO_88_40 = 'STABILO_88_40';
+export const STABILO_88_50 = 'STABILO_88_50';
+export const STABILO_88_45 = 'STABILO_88_45';
+export const STABILO_88_22 = 'STABILO_88_22';
+
+export const stabilo88 = [
+  STABILO_88_44,
+  STABILO_88_33,
+  STABILO_88_43,
+  STABILO_88_36,
+  STABILO_88_53,
+  STABILO_88_63
+];
+
 export const penInfo = {
   [PRISMA05_RED]: {
     color: new Color('#f00'),
@@ -55,6 +102,51 @@ export const penInfo = {
   [PRISMA05_BLACK]: {
     color: new Color('#000'),
     strokeWidth: PRISMA_STROKE_WIDTH
+  },
+
+  [STABILO_88_44]: {
+    color: new Color('#FFD700'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_33]: {
+    color: new Color('#32CD32'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_43]: {
+    color: new Color('#00FF7F'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_36]: {
+    color: new Color('#008000'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_53]: {
+    color: new Color('#008B8B'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_63]: {
+    color: new Color('#556B2F'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_54]: {
+    color: new Color('#FFA500'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_40]: {
+    color: new Color('#FF0000'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_50]: {
+    color: new Color('#DC143C'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_45]: {
+    color: new Color('#A52A2A'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_22]: {
+    color: new Color('#191970'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
   },
 }
 
