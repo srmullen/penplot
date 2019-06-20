@@ -1,5 +1,6 @@
 import paper, { Point, Path, Group } from 'paper';
 import math, { random, randomInt } from 'mathjs';
+import { sortBy } from 'lodash';
 import please from 'pleasejs';
 import { Noise } from 'noisejs';
 import dat from 'dat.gui';
@@ -13,9 +14,30 @@ import * as pens from 'common/pens';
 window.math = math;
 
 const noise = new Noise();
-const [width, height] = A4.landscape;
-const canvas = createCanvas(A4.landscape);
+// const PAPER_SIZE = A4.landscape
+const PAPER_SIZE = STRATH_SMALL.landscape;
+const [width, height] = PAPER_SIZE;
+const canvas = createCanvas(PAPER_SIZE);
 paper.setup(canvas);
+
+const seed = randomInt(2000);
+// const seed = 1456;
+console.log(seed);
+noise.seed(seed);
+math.config({ randomSeed: seed });
+
+const H_MARGIN = 30;
+const V_MARGIN = 50;
+const BOUNDS = {
+  top: V_MARGIN,
+  left: H_MARGIN,
+  bottom: height - V_MARGIN,
+  right: width - H_MARGIN
+};
+
+function inBounds(point) {
+  return point.x > BOUNDS.left && point.x < BOUNDS.right && point.y > BOUNDS.top && point.y < BOUNDS.bottom;
+}
 
 /**
  * Creates mountainous craggy points between p1 and p2.
@@ -23,12 +45,16 @@ paper.setup(canvas);
  * @param {Point} p2 
  * @param {number} nPoints 
  */
-function crags(p1, p2, nPoints) {
+function crags(p1, p2, opts={}) {
+  const { 
+    nPoints = 3,
+    upheaval = () => [0, random(-15, 15)]
+  } = opts;
   const points = [];
   const dist = p1.getDistance(p2) / nPoints + 1;
   const vec = p2.subtract(p1).normalize();
   for (let i = 1; i < nPoints; i++) {
-    const point = p1.add(vec.multiply(dist * i)).add([0, random(-15, 15)]);
+    const point = p1.add(vec.multiply(dist * i)).add(upheaval());
     points.push(point);
   }
   return points;
@@ -57,10 +83,11 @@ function getBounds (segments) {
 }
 
 class Mountain {
-  constructor (base, peak, segments) {
+  constructor (base, peak, segments, ridge) {
     this.base = base;
     this.peak = peak;
     this.segments = segments;
+    this.ridge = ridge;
     this.bounds = getBounds(segments);
   }
   
@@ -83,17 +110,30 @@ class Mountain {
 
     const points = [left, leftMid, peak, rightMid, right];
 
+    // Create the outline of the mountain
     const segments = [points[0]];
     for (let i = 1; i < points.length; i++) {
       const p1 = points[i - 1];
       const p2 = points[i];
-      for (let crag of crags(p1, p2, 3)) {
+      for (let crag of crags(p1, p2, {nPoints: 10, upheaval: () => [0, random(-5, 5)]})) {
         segments.push(crag);
       }
       segments.push(p2);
     }
 
-    return new Mountain(base, peak, segments);
+    // Create a ridge on the mountain face.
+    const ridge = [peak];
+    let vector = base.subtract(peak);
+    const nSwitchbacks = 5;
+    const size = vector.length / nSwitchbacks;
+    vector = vector.normalize();
+    for (let i = 0; i < nSwitchbacks; i++) {
+      const prev = ridge[ridge.length - 1];
+      const switchback = prev.add(vector.multiply(size).rotate(random(-15, 15)));
+      ridge.push(switchback);
+    }
+
+    return new Mountain(base, peak, segments, ridge);
   }
 
   getIntersections (s1, s2) {
@@ -106,10 +146,10 @@ class Mountain {
         from: s1,
         to: s2,
       });
-      const intersections = p1.getCrossings(p2);
+      const intersections = p1.getIntersections(p2);
+      p1.remove();
+      p2.remove();
       if (intersections.length) {
-        p1.remove();
-        p2.remove();
         return intersections.map(intersect => intersect.point);
       }
     }
@@ -117,16 +157,18 @@ class Mountain {
 
   /**
    * true if the point is contained within the mountain.
+   * This assumes the point has a greater depth than the mountain.
    * @param {Point} point 
    */
   contains(point) {
     if (
       point.x > this.bounds.right || 
       point.x < this.bounds.left ||
-      // point.y > this.bounds.bottom || // Ignore the bottom because everything below the mountain ill be hidden.
-      point.y < this.bounds.top
+      point.y < this.bounds.top // Ignore the bottom because everything below the mountain ill be hidden.
     ) {
       return false;
+    } else if (point.y >= this.bounds.bottom) {
+      return true;
     } else {
       for (let i = 1; i < this.segments.length; i++) {
         const p1 = this.segments[i-1];
@@ -153,7 +195,48 @@ class Mountain {
   }
 }
 
-function mountainRange () {
+function twoMountains () {
+  const tool = new paper.Tool();
+
+  let m1 = Mountain.triangleMountain(
+    new Point(width / 2, height / 2 + 100),
+    {
+      // elevation: () => random(90, 110),
+      elevation: 100,
+      span: () => [120, 0]
+    }
+  );
+  let m2 = Mountain.triangleMountain(
+    // new Point(width / 2 + 100, height / 2 + 100),
+    new Point(581, 416),
+    {
+      elevation: () => 100,
+      span: () => [100, 0]
+    }
+  );
+  let m1Group = draw(m1, [], { strokeColor: 'blue' });
+  let m2Group = draw(m2, [m1], { strokeColor: 'red' });
+
+  tool.onMouseDrag = (event) => {
+    m1Group.remove();
+    m2Group.remove();
+    m2 = Mountain.triangleMountain(
+      event.point,
+      {
+        elevation: () => 100,
+        span: () => [100, 0]
+      }
+    );
+    m1Group = draw(m1, [], { strokeColor: 'blue' });
+    m2Group = draw(m2, [m1], { strokeColor: 'red' });
+  }
+
+  tool.onMouseUp = (event) => {
+    console.log(`x: ${event.point.x}, y: ${event.point.y}`);
+  }
+}
+
+function threeMountains () {
   const m1 = Mountain.triangleMountain(
     new Point(width / 2, height / 2 + 100),
     {
@@ -172,50 +255,131 @@ function mountainRange () {
     new Point(width / 2 - 100, height / 2 + 100),
     {
       elevation: () => random(90, 110),
-      span: () => [70, 0]
+      span: () => [150, 0]
     }
   );
   
   draw(m1, [m2, m3]);
-  draw(m2);
+  draw(m2, [m3]);
   draw(m3);  
 }
 
-mountainRange();
+function mountainRange (nMountains=5) {
+  let mountains = [];
+  for (let i = 0; i < nMountains; i++) {
+    const x = 100 + random(width - 100);
+    const y = random(height/3, height - height/5);
+    const mountain = Mountain.triangleMountain(
+      new Point(x, y),
+      {
+        elevation: () => random(50, 120),
+        span: () => [random(90, 130), random(-10, 10)]
+      }
+    );
+    mountains.push(mountain);
+  }
 
-function cleaveMountain(segments, m2) {
-  const cleaved = [];
+  // sort mountains from front to back.
+  mountains = sortBy(mountains, mountain => -mountain.base.y)
+
+  const colors = ['black', 'red', 'green', 'blue', 'brown'];
+  mountains.reduce((foreground, mountain, i) => {
+    draw(mountain, foreground, {strokeColor: 'black'});
+    return foreground.concat(mountain);
+  }, []);
+
+
+}
+
+// twoMountains();
+// threeMountains();
+mountainRange(25);
+
+function cleaveMountain(mountainSegments, foreground=[]) {
+  let segments = [mountainSegments];
+  let ret = [];
+  for (let foothill of foreground) {
+    for (let segment of segments) {
+      const cleaved = cleaveSegments(segment, foothill);
+      for (let cleave of cleaved) {
+        ret.push(cleave);
+      }
+    }
+    segments = ret;
+    ret = [];
+  }
+  return segments;
+}
+
+function cleaveSegments (segments, m2) {
+  const cleaved = []; // cleaved is an array of arrays of all points that need to be drawn.
+  let visible = []; // visible are the points that need to be drawn.
   const obscured = segments.map(point => m2.contains(point));
   if (!obscured[0]) {
-    cleaved.push(segments[0]);
+    visible.push(segments[0]);
   }
   for (let i = 1; i < obscured.length; i++) {
-    if (obscured[i-1] && !obscured[i]) { // first point is obscured
+    if (obscured[i - 1] && !obscured[i]) { // first point is obscured
       const intersections = m2.getIntersections(segments[i - 1], segments[i]);
       const intersection = intersections ? intersections[0] : null;
-      cleaved.push(intersection);
-      cleaved.push(segments[i]);
+      if (intersection) {
+        visible.push(intersection);
+      }
+      visible.push(segments[i]);
     } else if (!obscured[i - 1] && obscured[i]) { // second point is obscured
       const intersections = m2.getIntersections(segments[i - 1], segments[i]);
       const intersection = intersections ? intersections[0] : null;
-      cleaved.push(intersection);
+      if (intersection) {
+        visible.push(intersection);
+      }
+      // start a new list of segments
+      cleaved.push(visible);
+      visible = [];
     } else if (!obscured[i - 1] && !obscured[i]) {
-      cleaved.push(segments[i]);
+      visible.push(segments[i]);
     } else {
       // both segments are obscured. Don't use either of them.
     }
   }
+  if (visible.length) {
+    cleaved.push(visible);
+  }
   return cleaved;
 }
 
-function draw (mountain, foreground=[]) {
-  let segments = mountain.segments;
-  for (let foothill of foreground) {
-    segments = cleaveMountain(segments, foothill);
-  }
-  return new Path({
-    segments, //: mountain.segments,
+function drawRidge (mountain, foreground) {
+  const ridges = cleaveMountain(mountain.ridge, foreground);
+  const clipped = clipBounds(inBounds, ridges);
+  const children = clipped.map(ridge => new Path({
+    segments: ridge,
     strokeColor: 'black'
+  }))
+  return children;
+}
+
+function draw (mountain, foreground=[], opts={}) {
+  const segments = cleaveMountain(mountain.segments, foreground);
+
+  const children = [];
+  const clipped = clipBounds(inBounds, segments);
+  clipped.forEach(segment => {
+    children.push(new Path({
+      segments: segment,
+      strokeColor: 'black',
+      ...opts
+    }));
+  });
+
+  const ridges = drawRidge(mountain, foreground);
+  for (let ridge of ridges) {
+    children.push(ridge);
+  }
+
+  // TODO
+  // - shading
+  // - generation and variation
+  return new Group({
+    children
   });
 }
 
