@@ -82,12 +82,33 @@ function getBounds (segments) {
   return { top, left, bottom, right };
 }
 
+// TODO: Add a way to stop ridge if it is outside of the mountain.
+function createRidge (from, to, opts={}) {
+  const ridge = [from];
+  let vector = to.subtract(from);
+  const {
+    nSwitchbacks = 5,
+    inBounds = () => true
+  } = opts;
+  const size = vector.length / nSwitchbacks;
+  vector = vector.normalize();
+  for (let i = 0; i < nSwitchbacks; i++) {
+    const prev = ridge[ridge.length - 1];
+    const switchback = prev.add(vector.multiply(size).rotate(opts.rotation()));
+    if (!inBounds(switchback)) {
+      return ridge;
+    }
+    ridge.push(switchback);
+  }
+  return ridge;
+}
+
 class Mountain {
-  constructor (base, peak, segments, ridge) {
+  constructor (base, peak, segments) {
     this.base = base;
     this.peak = peak;
     this.segments = segments;
-    this.ridge = ridge;
+    this.ridges = [];
     this.bounds = getBounds(segments);
   }
   
@@ -96,17 +117,17 @@ class Mountain {
    */
   static triangleMountain(base, opts = {}) {
     const {
-      elevation = 100,
+      elevation = new Point(0, 100)
     } = processOptions(opts);
     const spanLeft = opts.spanLeft || opts.span;
     const spanRight = opts.spanRight || opts.span;
 
     // Create the points
-    const peak = base.subtract(0, elevation);
+    const peak = base.subtract(elevation);
     const left = base.subtract(spanLeft());
     const right = base.add(spanRight());
-    const leftMid = left.add(peak.subtract(left).divide(2)).add([0, elevation / 4]);
-    const rightMid = peak.add(right.subtract(peak).divide(2)).add([0, elevation / 4]);
+    const leftMid = left.add(peak.subtract(left).divide(2)).add([0, elevation.y / 4]);
+    const rightMid = peak.add(right.subtract(peak).divide(2)).add([0, elevation.y / 4]);
 
     const points = [left, leftMid, peak, rightMid, right];
 
@@ -121,19 +142,65 @@ class Mountain {
       segments.push(p2);
     }
 
+    const mountain = new Mountain(base, peak, segments);
+
+    mountain.createRidges(1);
+
+    return mountain;
+  }
+
+  createRidges (nRidges = 1) {
     // Create a ridge on the mountain face.
-    const ridge = [peak];
-    let vector = base.subtract(peak);
-    const nSwitchbacks = 5;
-    const size = vector.length / nSwitchbacks;
-    vector = vector.normalize();
-    for (let i = 0; i < nSwitchbacks; i++) {
-      const prev = ridge[ridge.length - 1];
-      const switchback = prev.add(vector.multiply(size).rotate(random(-15, 15)));
-      ridge.push(switchback);
+    // const genFromPoint = () => new Point(
+    //   random(this.bounds.left, this.bounds.right),
+    //   random(this.bounds.top, this.bounds.bottom)
+    // );
+    const genFromPoint = () => new Point(
+      random(this.peak.x - 25, this.peak. x + 25),
+      random(this.peak.y, this.peak.y + 25)
+    );
+    const genToPoint = () => {
+      return new Point(
+        // random(this.segments[0].x, this.segments[this.segments.length-1].x),
+        random(this.base.x - 100, this.base.x + 100),
+        this.base.y
+      );
+    }
+    const ridges = [];
+    for (let i = 0; i < nRidges; i++) {
+      // const from = this.peak.add(random(5, 10), random(5, 15));
+      // const to = this.base;
+      const from = this.getRandomMountainPoint(genFromPoint);
+      const to = this.getRandomMountainPoint(genToPoint)
+      const ridge = createRidge(from, to, {
+        rotation: () => random(-25, 25),
+        inBounds: (point) => {
+          return this.contains(point);
+        }
+      });
+      
+      // TODO: clip ridges - Should abstract out common functionality with cleaveSegments.
+      // const clipped = clipRidge(ridge, ridges);
+      ridges.push(ridge);
     }
 
-    return new Mountain(base, peak, segments, ridge);
+    this.ridges = ridges;
+  }
+
+  /**
+   * Uses genPoint to create a point and doesn't return until a point is contained in the mountain.
+   * @param {() => Point)} genPoint 
+   */
+  getRandomMountainPoint (genPoint) {
+    let point = genPoint();
+    let i = 0;
+    while (!this.contains(point)) {
+      if (i > 100) { // protect against infinate loop.
+        return;
+      }
+      point = genPoint();
+    }
+    return point;
   }
 
   getIntersections (s1, s2) {
@@ -201,8 +268,7 @@ function twoMountains () {
   let m1 = Mountain.triangleMountain(
     new Point(width / 2, height / 2 + 100),
     {
-      // elevation: () => random(90, 110),
-      elevation: 100,
+      elevation: new Point(0, 100),
       span: () => [120, 0]
     }
   );
@@ -210,7 +276,7 @@ function twoMountains () {
     // new Point(width / 2 + 100, height / 2 + 100),
     new Point(581, 416),
     {
-      elevation: () => 100,
+      elevation: () => new Point(0, 100),
       span: () => [100, 0]
     }
   );
@@ -223,7 +289,7 @@ function twoMountains () {
     m2 = Mountain.triangleMountain(
       event.point,
       {
-        elevation: () => 100,
+        elevation: () => new Point(0, 100),
         span: () => [100, 0]
       }
     );
@@ -240,21 +306,21 @@ function threeMountains () {
   const m1 = Mountain.triangleMountain(
     new Point(width / 2, height / 2 + 100),
     {
-      elevation: () => random(90, 110),
+      elevation: () => new Point(random(-50, 50), random(90, 110)),
       span: () => [120, random(-10, 10)]
     }
   );
   const m2 = Mountain.triangleMountain(
     new Point(width / 2 + 100, height / 2 + 100),
     {
-      elevation: () => random(90, 110),
+      elevation: () => new Point(random(-10, 10), random(90, 110)),
       span: () => [random(40, 60), 0]
     }
   );
   const m3 = Mountain.triangleMountain(
     new Point(width / 2 - 100, height / 2 + 100),
     {
-      elevation: () => random(90, 110),
+      elevation: () => new Point(random(-10, 10), random(90, 110)),
       span: () => [150, 0]
     }
   );
@@ -272,7 +338,7 @@ function mountainRange (nMountains=5) {
     const mountain = Mountain.triangleMountain(
       new Point(x, y),
       {
-        elevation: () => random(50, 120),
+        elevation: () => new Point(random(-10, 10), random(50, 120)),
         span: () => [random(90, 130), random(-10, 10)]
       }
     );
@@ -296,7 +362,7 @@ function mountainRange (nMountains=5) {
 mountainRange(25);
 
 function cleaveMountain(mountainSegments, foreground=[]) {
-  let segments = [mountainSegments];
+  let segments = mountainSegments;
   let ret = [];
   for (let foothill of foreground) {
     for (let segment of segments) {
@@ -348,7 +414,7 @@ function cleaveSegments (segments, m2) {
 }
 
 function drawRidge (mountain, foreground) {
-  const ridges = cleaveMountain(mountain.ridge, foreground);
+  const ridges = cleaveMountain(mountain.ridges, foreground);
   const clipped = clipBounds(inBounds, ridges);
   const children = clipped.map(ridge => new Path({
     segments: ridge,
@@ -358,7 +424,7 @@ function drawRidge (mountain, foreground) {
 }
 
 function draw (mountain, foreground=[], opts={}) {
-  const segments = cleaveMountain(mountain.segments, foreground);
+  const segments = cleaveMountain([mountain.segments], foreground);
 
   const children = [];
   const clipped = clipBounds(inBounds, segments);

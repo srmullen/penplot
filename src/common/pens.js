@@ -46,7 +46,10 @@ export const AL_N6_FAT = 'AL_N6_FAT';
 export const AL_N8_FAT = 'AL_N8_FAT';
 export const AL_N10_FAT = 'AL_N10_FAT';
 
-// Stabilo
+/**
+ * Stabilo
+ * position - center on red dot. Pen height down = 42, pen height up = 70.
+ **/ 
 const STABILO_88_STROKE_WIDTH = 1;
 export const STABILO_88_44 = 'STABILO_88_44';
 export const STABILO_88_33 = 'STABILO_88_33';
@@ -60,6 +63,13 @@ export const STABILO_88_40 = 'STABILO_88_40';
 export const STABILO_88_50 = 'STABILO_88_50';
 export const STABILO_88_45 = 'STABILO_88_45';
 export const STABILO_88_22 = 'STABILO_88_22';
+
+export const STABILO_88_41 = 'STABILO_88_41'; // mediumslateblue
+export const STABILO_88_32 = 'STABILO_88_32'; 
+export const STABILO_88_51 = 'STABILO_88_51'; 
+export const STABILO_88_57 = 'STABILO_88_57'; 
+export const STABILO_88_13 = 'STABILO_88_13'; 
+export const STABILO_88_59 = 'STABILO_88_59'; 
 
 export const stabilo88 = [
   STABILO_88_44,
@@ -146,6 +156,31 @@ export const penInfo = {
   },
   [STABILO_88_22]: {
     color: new Color('#191970'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+
+  [STABILO_88_41]: {
+    color: new Color('#7B68EE'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_32]: {
+    color: new Color('#4169E1'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_51]: {
+    color: new Color('#008B8B'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_57]: {
+    color: new Color('#00CED1'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_13]: {
+    color: new Color('#7FFFD4'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_59]: {
+    color: new Color('#DDA0DD'),
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
 }
