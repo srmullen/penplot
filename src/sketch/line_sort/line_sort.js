@@ -1,20 +1,14 @@
-import paper, { Point, Path, Group } from 'paper';
-import math, { random, randomInt } from 'mathjs';
+import paper, { Point, Path } from 'paper';
+import math, { randomInt } from 'mathjs';
 import { range } from 'lodash';
 import please from 'pleasejs';
-import { Noise } from 'noisejs';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
-  saveAsSVG, intersects, intersection, radiansToDegrees, gauss, choose, wchoose, lerp, processOptions, clipBounds
+  saveAsSVG, shuffle
 } from 'common/utils';
-import * as colors from 'common/color';
 import * as pens from 'common/pens';
 import * as sort from './sort';
-
-const PAPER_SIZE = STRATH_SMALL.landscape;
-const [width, height] = PAPER_SIZE;
-const canvas = createCanvas(PAPER_SIZE);
-paper.setup(canvas);
+import * as palettes from './palettes';
 
 const seed = randomInt(2000);
 // const seed = 1456;
@@ -48,13 +42,6 @@ export function swapOut(arr, pos, item) {
   return prev;
 }
 
-function shuffle(a) {
-  for (let i = a.length; i; i--) {
-    let j = Math.floor(Math.random() * i);
-    [a[i - 1], a[j]] = [a[j], a[i - 1]];
-  }
-}
-
 function compareNumber(a, b) {
   if (a < b) {
     return -1;
@@ -80,6 +67,11 @@ function compareObjectByKey(key, a, b) {
 }
 
 function sortLinesByNumber () {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const sortFn = sort.selection;
   let exchangeFn = exchangeIndices;
   if (sortFn === sort.cycle) {
@@ -121,7 +113,12 @@ function sortLinesByNumber () {
 }
 // sortLinesByNumber();
 
-function sortLinesByColor(nLines, sortFn, palette) {
+function sortLinesByColor(nLines, sortFn, palette, smoothing) {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   // create items to sort
   const arr = [];
   for (let i = 0; i < nLines; i++) {
@@ -139,21 +136,179 @@ function sortLinesByColor(nLines, sortFn, palette) {
     exchangeFn = swapOut;
   } else if (sortFn === sort.merge || sortFn === sort.radix) {
     exchangeFn = copyFromList;
+  } else if (sortFn === sort.bogo) {
+    exchangeFn = shuffle;
   }
   
   let sorted = null;
   if (sortFn === sort.radix) {
     const max = Math.max(...arr.map(a => a['val']));
     sorted = [...sortFn(max, exchangeFn, a => a['val'], arr)];
+  } if (sortFn === sort.bogo) {
+    sorted = [];
+    const gen = sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr);
+    for (let i = 0; i < 100; i++) {
+      const { value, done } = gen.next();
+      if (done) {
+        break;
+      }
+      sorted.push(value);
+    }
   } else {
     sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
   }
-
-  draw(original, sorted);
+  
+  draw(original, sorted, width, height, smoothing);
 
 }
 
-function draw (original, sorted) {
+function quickSort(nLines, palette) {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const sortFn = sort.quick;
+  const exchangeFn = exchangeIndices;
+
+  // create items to sort
+  const arr = [];
+  for (let i = 0; i < nLines; i++) {
+    const val = randomInt(palette.length);
+    arr.push({
+      id: i,
+      val,
+      pen: palette[val]
+    });
+  }
+  const original = arr.map(a => a);
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+
+  draw(original, sorted, width, height, { type: 'catmull-rom', factor: 0.7 });
+}
+
+function mergeSort(nLines, palette) {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const sortFn = sort.merge;
+  const exchangeFn = copyFromList;
+
+  // create items to sort
+  const arr = [];
+  for (let i = 0; i < nLines; i++) {
+    const val = randomInt(palette.length);
+    arr.push({
+      id: i,
+      val,
+      pen: palette[val]
+    });
+  }
+  const original = arr.map(a => a);
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+
+  draw(original, sorted, width, height, {type: 'catmull-rom', factor: 0.9});
+}
+
+function heapSort(nLines, palette) {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const sortFn = sort.heap;
+  const exchangeFn = exchangeIndices;
+
+  // create items to sort
+  const arr = [];
+  for (let i = 0; i < nLines; i++) {
+    const val = randomInt(palette.length);
+    arr.push({
+      id: i,
+      val,
+      pen: palette[val]
+    });
+  }
+  const original = arr.map(a => a);
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+
+  draw(original, sorted, width, height, {
+    type: 'catmull-rom',
+    factor: 0.5
+  });
+}
+
+function bogoSort(palette) {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const sortFn = sort.bogo;
+  const exchangeFn = exchangeIndices;
+
+  // create items to sort
+  const arr = [...palette, ...palette].map((pen, i) => ({
+    id: i, 
+    val: palette.indexOf(pen),
+    pen
+  }));
+  shuffle(arr);
+  
+  const original = arr.map(a => a);
+
+  const gen = sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr);
+  const sorted = [];
+  for (let i = 0; i < 100; i++) {
+    const { value, done } = gen.next();
+    if (done) {
+      break;
+    }
+    sorted.push(value);
+  }
+
+  draw(original, sorted, width, height, {
+    type: 'catmull-rom',
+    factor: 0.5
+  });
+}
+
+function cocktailSort(palette, linesPerPen=10) {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  // create items to sort
+  const arr = [];
+  let id = 0;
+  for (let i = 0; i < palette.length; i++) {
+    for (let j = 0; j < linesPerPen; j++) {
+      arr.push({
+        id: id,
+        val: i,
+        pen: palette[i]
+      });
+      id++;
+    }
+  }
+  arr.reverse();
+  const original = arr.map(a => a);
+
+  const sortFn = sort.cocktail;
+  const exchangeFn = exchangeIndices;
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+
+  draw(original, sorted, width, height);
+}
+
+function draw(original, sorted, width, height, smoothing) {
   const nLines = original.length;
   const margin = 100;
   const vStepSize = (height - margin) / nLines;
@@ -184,48 +339,30 @@ function draw (original, sorted) {
         strokeColor: color
       });
       path.translate(margin / 2);
-      path.simplify();
-      path.smooth({
-        type: 'catmull-rom',
-        factor: 0.9
-      });
+      // if (smoothing) {
+      //   path.smooth(smoothing);
+      // }
+      path.simplify({tolerance: 0.5});
       paths.push(path);
     });
   }
 }
 
-const palette_evening = [
-  pens.STABILO_88_22,
-  pens.STABILO_88_45,
-  pens.STABILO_88_50,
-  pens.STABILO_88_40,
-  pens.STABILO_88_54,
-  pens.STABILO_88_44,
-];
+// sortLinesByColor(5, sort.bogo, palette_neon,
+//   {
+//     type: 'catmull-rom',
+//     factor: 0.5
+//   }
+// );
 
-const palette_garden = [
-  pens.STABILO_88_54,
-  pens.STABILO_88_44,
-  pens.STABILO_88_43,
-  pens.STABILO_88_33,
-  pens.STABILO_88_36,
-  pens.STABILO_88_63,
-  pens.STABILO_88_53,
-];
+// quickSort(200, palette_large);
+// mergeSort(200, palette_large);
+// heapSort(200, palette_large);
+// bogoSort(palette_neon);
+cocktailSort(palettes.palette_hot_and_cold, 14);
 
-const palette_frost = [
-  pens.STABILO_88_22,
-  pens.STABILO_88_41,
-  pens.STABILO_88_32,
-  pens.STABILO_88_51,
-  pens.STABILO_88_57,
-  pens.STABILO_88_13,
-  pens.STABILO_88_59,
-];
-
-// sortLinesByColor(100, sort.cocktail, palette_garden);
-// sortLinesByColor(100, sort.selection, palette_garden);
-sortLinesByColor(100, sort.insertion, palette_frost);
+// sortLinesByColor(200, sort.quick, palette_large);
+// sortLinesByColor(200, sort.merge, palette_large);
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);

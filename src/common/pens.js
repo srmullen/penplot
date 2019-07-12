@@ -64,12 +64,27 @@ export const STABILO_88_50 = 'STABILO_88_50';
 export const STABILO_88_45 = 'STABILO_88_45';
 export const STABILO_88_22 = 'STABILO_88_22';
 
-export const STABILO_88_41 = 'STABILO_88_41'; // mediumslateblue
+export const STABILO_88_41 = 'STABILO_88_41';
 export const STABILO_88_32 = 'STABILO_88_32'; 
 export const STABILO_88_51 = 'STABILO_88_51'; 
-export const STABILO_88_57 = 'STABILO_88_57'; 
 export const STABILO_88_13 = 'STABILO_88_13'; 
+export const STABILO_88_55 = 'STABILO_88_55';
+export const STABILO_88_56 = 'STABILO_88_56'; 
+export const STABILO_88_57 = 'STABILO_88_57'; 
+export const STABILO_88_58 = 'STABILO_88_58';
 export const STABILO_88_59 = 'STABILO_88_59'; 
+
+export const STABILO_88_94 = 'STABILO_88_94';
+export const STABILO_88_96 = 'STABILO_88_96';
+export const STABILO_88_46 = 'STABILO_88_46';
+
+// Neon
+export const STABILO_88_033 = 'STABILO_88_033';
+export const STABILO_88_056 = 'STABILO_88_056';
+export const STABILO_88_040 = 'STABILO_88_040';
+export const STABILO_88_024 = 'STABILO_88_024';
+export const STABILO_88_054 = 'STABILO_88_054';
+
 
 export const stabilo88 = [
   STABILO_88_44,
@@ -119,7 +134,7 @@ export const penInfo = {
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
   [STABILO_88_33]: {
-    color: new Color('#32CD32'),
+    color: new Color('#6B8E23'),
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
   [STABILO_88_43]: {
@@ -181,6 +196,50 @@ export const penInfo = {
   },
   [STABILO_88_59]: {
     color: new Color('#DDA0DD'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_94]: {
+    color: new Color('#C0C0C0'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_96]: {
+    color: new Color('#696969'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_46]: {
+    color: new Color('#000000'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_58]: {
+    color: new Color('#8B008B'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_55]: {
+    color: new Color('#9370DB'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_033]: {
+    color: new Color('#00FF00'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_056]: {
+    color: new Color('#FF00CC'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_040]: {
+    color: new Color('#FF0099'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_024]: {
+    color: new Color('#FFFF33'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_054]: {
+    color: new Color('#FF6700'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_56]: {
+    color: new Color('#C71585'),
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
 }

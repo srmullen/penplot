@@ -164,8 +164,9 @@ export function* merge(exchange, compare, list) {
         exchange(copy, list, i2, i);
         i2++;
       }
-      yield { list: list.map(a => a) };
+      
     }
+    yield { list: list.map(a => a) };
   }
 
   function* splitMerge(list, low, high) {
@@ -322,4 +323,83 @@ export function* radix(max, exchange, key, list) {
       yield v;
     }
   }
+}
+
+export function* bogo(shuffle, compare, list) {
+  let sorted = false;
+
+  for (let i = 0; i < list.length - 1; i++) {
+    if (compare(list[i], list[i + 1]) > 0) {
+      sorted = false;
+      break;
+    }
+    // if it gets through the whole list then the list is sorted
+    sorted = true;
+  }
+  while (!sorted) {
+    shuffle(list);
+    yield { list: list.map(a => a) };
+
+    for (let i = 0; i < list.length - 1; i++) {
+      if (compare(list[i], list[i + 1]) > 0) {
+        sorted = false;
+        break;
+      }
+      // if it gets through the whole list then the list is sorted
+      sorted = true;
+    }
+  }
+  yield { list: list.map(a => a) };
+}
+
+export function* heap(exchange, compare, list) {
+  // Subtree is index into the array. The subtree chilren must already be a heaps.
+  function* heapify(size, subtree) {
+    let root = subtree;
+    // get the children
+    let left = 2 * subtree + 1;
+    let right = 2 * subtree + 2;
+
+    // yield { subtree: { root, left, right }, compare: [] };
+
+    if (left < size && (
+      // yield { compare: [left, root] }, 
+      compare(list[left], list[root])) > 0) {
+      root = left;
+    }
+
+    if (right < size && (
+      // yield { compare: [right, root] }, 
+      compare(list[right], list[root]) > 0)) {
+      root = right;
+    }
+
+    if (subtree !== root) {
+      exchange(list, root, subtree);
+      yield { list: list.map(a => a) };
+      // affected subtree now needs to be heapified.
+      for (let v of heapify(size, root)) {
+        yield v;
+      }
+    }
+  }
+
+  // Create the heap.
+  for (let i = Math.floor(list.length / 2 - 1); i >= 0; i--) {
+    for (let v of heapify(list.length, i)) {
+      yield v;
+    }
+  }
+
+  // Iterate through the list taking the smallest element and placing it at the beginning.
+  // Then heapify the affected subtree.
+  for (let i = list.length - 1; i >= 0; i--) {
+    exchange(list, 0, i);
+    yield { list: list.map(a => a), sortedRight: i };
+    for (let v of heapify(i, 0)) {
+      yield v;
+    }
+  }
+
+  // yield { sorted: true };
 }

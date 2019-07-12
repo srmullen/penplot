@@ -557,11 +557,11 @@ function followPath (path, {
 }
 
 // curtain_in_wind();
-// oliver();
+oliver();
 // lineSpiral();
 // followHandDrawnPath();
 // scales();
-fromFlowField();
+// fromFlowField();
 
 window.saveAsSvg = function save (name) {
   saveAsSVG(paper.project, name);

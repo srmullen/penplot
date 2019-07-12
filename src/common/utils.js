@@ -184,3 +184,14 @@ export function maprange (n, start1, stop1, start2, stop2, withinBounds) {
     return constrain(newval, stop2, start2);
   }
 };
+
+/**
+ * In-place array shuffle.
+ * @param {Array} a 
+ */
+export function shuffle(a) {
+  for (let i = a.length; i; i--) {
+    let j = Math.floor(Math.random() * i);
+    [a[i - 1], a[j]] = [a[j], a[i - 1]];
+  }
+}
