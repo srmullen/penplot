@@ -14,6 +14,7 @@ export const palette_garden = [
   pens.STABILO_88_44,
   pens.STABILO_88_43,
   pens.STABILO_88_33,
+  pens.STABILO_88_55,
   pens.STABILO_88_36,
   pens.STABILO_88_63,
   pens.STABILO_88_53,
@@ -108,4 +109,29 @@ export const palette_hot_and_cold = [
   pens.STABILO_88_40,
   pens.STABILO_88_54,
   pens.STABILO_88_44,
+];
+
+export const palette_blues_and_greens = [
+  pens.STABILO_88_57,
+  pens.STABILO_88_51,
+  pens.STABILO_88_32,
+  pens.STABILO_88_41,
+  pens.STABILO_88_36,
+  pens.STABILO_88_43,
+  pens.STABILO_88_33,
+  pens.STABILO_88_44,
+];
+
+export const palette_rgb3 = [
+  pens.STABILO_88_57,
+  pens.STABILO_88_32,
+  pens.STABILO_88_41,
+
+  pens.STABILO_88_43,
+  pens.STABILO_88_36,
+  pens.STABILO_88_53,
+
+  pens.STABILO_88_44,
+  pens.STABILO_88_54,
+  pens.STABILO_88_40,
 ];

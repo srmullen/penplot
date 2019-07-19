@@ -1,6 +1,6 @@
 import paper, { Point, Path } from 'paper';
 import math, { randomInt } from 'mathjs';
-import { range } from 'lodash';
+import { range, reverse } from 'lodash';
 import please from 'pleasejs';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
@@ -8,7 +8,7 @@ import {
 } from 'common/utils';
 import * as pens from 'common/pens';
 import * as sort from './sort';
-import * as palettes from './palettes';
+import * as palettes from 'common/palettes';
 
 const seed = randomInt(2000);
 // const seed = 1456;
@@ -162,7 +162,7 @@ function sortLinesByColor(nLines, sortFn, palette, smoothing) {
 
 }
 
-function quickSort(nLines, palette) {
+function quickSort(items) {
   const PAPER_SIZE = A4.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
@@ -171,24 +171,14 @@ function quickSort(nLines, palette) {
   const sortFn = sort.quick;
   const exchangeFn = exchangeIndices;
 
-  // create items to sort
-  const arr = [];
-  for (let i = 0; i < nLines; i++) {
-    const val = randomInt(palette.length);
-    arr.push({
-      id: i,
-      val,
-      pen: palette[val]
-    });
-  }
-  const original = arr.map(a => a);
+  const original = items.map(a => a);
 
-  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
 
-  draw(original, sorted, width, height, { type: 'catmull-rom', factor: 0.7 });
+  draw(original, sorted, width, height, {smoothing: { type: 'catmull-rom', factor: 0.7 }});
 }
 
-function mergeSort(nLines, palette) {
+function mergeSort(items) {
   const PAPER_SIZE = A4.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
@@ -197,24 +187,14 @@ function mergeSort(nLines, palette) {
   const sortFn = sort.merge;
   const exchangeFn = copyFromList;
 
-  // create items to sort
-  const arr = [];
-  for (let i = 0; i < nLines; i++) {
-    const val = randomInt(palette.length);
-    arr.push({
-      id: i,
-      val,
-      pen: palette[val]
-    });
-  }
-  const original = arr.map(a => a);
+  const original = items.map(a => a);
 
-  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
 
-  draw(original, sorted, width, height, {type: 'catmull-rom', factor: 0.9});
+  draw(original, sorted, width, height, {smoothing: {type: 'catmull-rom', factor: 0.9}});
 }
 
-function heapSort(nLines, palette) {
+function heapSort(items) {
   const PAPER_SIZE = A4.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
@@ -223,19 +203,9 @@ function heapSort(nLines, palette) {
   const sortFn = sort.heap;
   const exchangeFn = exchangeIndices;
 
-  // create items to sort
-  const arr = [];
-  for (let i = 0; i < nLines; i++) {
-    const val = randomInt(palette.length);
-    arr.push({
-      id: i,
-      val,
-      pen: palette[val]
-    });
-  }
-  const original = arr.map(a => a);
+  const original = items.map(a => a);
 
-  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
 
   draw(original, sorted, width, height, {
     type: 'catmull-rom',
@@ -243,26 +213,18 @@ function heapSort(nLines, palette) {
   });
 }
 
-function bogoSort(palette) {
+function bogoSort(items) {
   const PAPER_SIZE = STRATH_SMALL.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
 
   const sortFn = sort.bogo;
-  const exchangeFn = exchangeIndices;
-
-  // create items to sort
-  const arr = [...palette, ...palette].map((pen, i) => ({
-    id: i, 
-    val: palette.indexOf(pen),
-    pen
-  }));
-  shuffle(arr);
+  const exchangeFn = shuffle;
   
-  const original = arr.map(a => a);
+  const original = items.map(a => a);
 
-  const gen = sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr);
+  const gen = sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items);
   const sorted = [];
   for (let i = 0; i < 100; i++) {
     const { value, done } = gen.next();
@@ -273,18 +235,75 @@ function bogoSort(palette) {
   }
 
   draw(original, sorted, width, height, {
-    type: 'catmull-rom',
-    factor: 0.5
+    smoothing: {
+      type: 'catmull-rom',
+      factor: 0.8
+    }
   });
 }
 
-function cocktailSort(palette, linesPerPen=10) {
+function cocktailSort(items) {
   const PAPER_SIZE = STRATH_SMALL.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
 
-  // create items to sort
+  const original = items.map(a => a);
+
+  const sortFn = sort.cocktail;
+  const exchangeFn = exchangeIndices;
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
+
+  draw(original, sorted, width, height);
+}
+
+function cycleSort(items, opts) {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.cycle;
+  const exchangeFn = swapOut;
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
+
+  draw(original, sorted, width, height, opts);
+}
+
+function shellSort(items, opts, paperType = STRATH_SMALL) {
+  const PAPER_SIZE = paperType.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.shell;
+  const exchangeFn = exchangeIndices;
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
+
+  draw(original, sorted, width, height, opts);
+}
+
+function uniformRandomItems(nLines, palette) {
+  const arr = [];
+  for (let i = 0; i < nLines; i++) {
+    const val = randomInt(palette.length);
+    arr.push({
+      id: i,
+      val,
+      pen: palette[val]
+    });
+  }
+  return arr;
+}
+
+function reverseItems(linesPerPen = 10, palette) {
   const arr = [];
   let id = 0;
   for (let i = 0; i < palette.length; i++) {
@@ -298,17 +317,27 @@ function cocktailSort(palette, linesPerPen=10) {
     }
   }
   arr.reverse();
-  const original = arr.map(a => a);
-
-  const sortFn = sort.cocktail;
-  const exchangeFn = exchangeIndices;
-
-  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr)];
-
-  draw(original, sorted, width, height);
+  return arr;
 }
 
-function draw(original, sorted, width, height, smoothing) {
+function repeatItems(times, palette) {
+  const arr = [];
+  let id = 0;
+  for (let i = 0; i < times; i++) {
+    for (let j = 0; j < palette.length; j++) {
+      arr.push({
+        id: id,
+        val: j,
+        pen: palette[j]
+      });
+      id++;
+    }
+  }
+  arr.reverse();
+  return arr;
+}
+
+function draw(original, sorted, width, height, opts={}) {
   const nLines = original.length;
   const margin = 100;
   const vStepSize = (height - margin) / nLines;
@@ -339,30 +368,67 @@ function draw(original, sorted, width, height, smoothing) {
         strokeColor: color
       });
       path.translate(margin / 2);
-      // if (smoothing) {
-      //   path.smooth(smoothing);
-      // }
-      path.simplify({tolerance: 0.5});
+      if (opts.smoothing) {
+        path.smooth(opts.smoothing);
+      }
+      if (opts.simplify) {
+        path.simplify(opts.simplify);
+      }
       paths.push(path);
     });
   }
 }
 
-// sortLinesByColor(5, sort.bogo, palette_neon,
-//   {
-//     type: 'catmull-rom',
-//     factor: 0.5
-//   }
-// );
+function splitReverse(arr, depth=0) {
+  const length = Math.floor(arr.length / 2)
+  if (!depth) {
+    return [
+      ...reverse(arr.slice(length)),
+      ...reverse(arr.slice(0, length)),
+    ]; 
+  } else {
+    return [
+      ...splitReverse(reverse(arr.slice(length)), depth - 1),
+      ...splitReverse(reverse(arr.slice(0, length)), depth - 1),
+    ]; 
+  }
+}
 
-// quickSort(200, palette_large);
-// mergeSort(200, palette_large);
-// heapSort(200, palette_large);
-// bogoSort(palette_neon);
-cocktailSort(palettes.palette_hot_and_cold, 14);
+// quickSort(uniformRandomItems(200, palettes.palette_large));
+// let items = repeatItems(25, palettes.palette_rgb3);
+// items = splitReverse(items, 3);
+// quickSort(items);
+// quickSort(repeatItems(12, palettes.palette_large));
+
+// mergeSort(uniformRandomItems(200, palettes.palette_large));
+// mergeSort(reverseItems(15, palettes.palette_hot_and_cold));
+// mergeSort(repeatItems(15, palettes.palette_hot_and_cold));
+
+// heapSort(uniformRandomItems(200, palettes.palette_large));
+// heapSort(reverseItems(15, palettes.palette_large));
+// heapSort(repeatItems(15, palettes.palette_hot_and_cold));
+
+bogoSort(repeatItems(4, palettes.palette_neon));
+
+// cocktailSort(reverseItems(10, palettes.palette_hot_and_cold));
+// palettes.palette_blues_and_greens.reverse();
+// cocktailSort(reverseItems(14, palettes.palette_blues_and_greens));
+
+// cycleSort(repeatItems(14, palettes.palette_hot_and_cold), {
+//   smoothing: {
+//     type: 'catmull-rom',
+//     factor: 0.9
+//   }
+// });
+
+// shellSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
+// shellSort(repeatItems(14, palettes.palette_hot_and_cold));
+// shellSort(reverseItems(25, palettes.palette_lego));
+// shellSort(reverseItems(14, palettes.palette_large), {}, A4);
 
 // sortLinesByColor(200, sort.quick, palette_large);
 // sortLinesByColor(200, sort.merge, palette_large);
+// sortLinesByColor(100, sort.cycle, palettes.palette_large);
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);
