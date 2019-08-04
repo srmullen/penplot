@@ -111,6 +111,18 @@ export const palette_hot_and_cold = [
   pens.STABILO_88_44,
 ];
 
+export const palette_flowers = [
+  pens.STABILO_88_44,
+  pens.STABILO_88_43,
+  pens.STABILO_88_36,
+  pens.STABILO_88_50,
+  pens.STABILO_88_40,
+  pens.STABILO_88_54,
+  pens.STABILO_88_59,
+  pens.STABILO_88_58,
+  pens.STABILO_88_55,
+];
+
 export const palette_blues_and_greens = [
   pens.STABILO_88_57,
   pens.STABILO_88_51,

@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['chord_waves', 'mountains', 'line_sort', 'cubic_entropy'];
+const sketches = ['chord_waves', 'line_sort', 'line_of_sight', 'swatches'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};

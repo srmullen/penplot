@@ -140,6 +140,7 @@ export function processOptions (options, input) {
 /**
  * Remove points from paths are out of bounds. If points out of bounds are in the middle of
  * paths then break the path into seperate paths.
+ * DOES NOT create new point on the boundary.
  * @param inBounds {Function} - Returns true if point is in bounds, fasle otherwise.
  * @param paths Point[][] - Array of point arrays.
  */
@@ -194,4 +195,32 @@ export function shuffle(a) {
     let j = Math.floor(Math.random() * i);
     [a[i - 1], a[j]] = [a[j], a[i - 1]];
   }
+}
+
+export function insert(arr, i, el) {
+  return [
+    ...arr.slice(0, i),
+    el,
+    ...arr.slice(i)
+  ];
+}
+
+// Draw circles in the topleft corner center and bottom right corner of the page
+// in order to help test axidraw placement.
+export function sizeTest() {
+  new Path.Circle({
+    radius: 10,
+    strokeColor: 'black',
+    center: [11, 11]
+  });
+  new Path.Circle({
+    radius: 10,
+    strokeColor: 'black',
+    center: [width / 2, height / 2]
+  });
+  new Path.Circle({
+    radius: 10,
+    strokeColor: 'black',
+    center: [width - 11, height - 11]
+  });
 }

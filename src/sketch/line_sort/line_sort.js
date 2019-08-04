@@ -162,7 +162,7 @@ function sortLinesByColor(nLines, sortFn, palette, smoothing) {
 
 }
 
-function quickSort(items) {
+function quickSort(items, opts) {
   const PAPER_SIZE = A4.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
@@ -175,7 +175,7 @@ function quickSort(items) {
 
   const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
 
-  draw(original, sorted, width, height, {smoothing: { type: 'catmull-rom', factor: 0.7 }});
+  draw(original, sorted, width, height, opts);
 }
 
 function mergeSort(items) {
@@ -234,12 +234,7 @@ function bogoSort(items) {
     sorted.push(value);
   }
 
-  draw(original, sorted, width, height, {
-    smoothing: {
-      type: 'catmull-rom',
-      factor: 0.8
-    }
-  });
+  draw(original, sorted, width, height, opts);
 }
 
 function cocktailSort(items) {
@@ -283,6 +278,38 @@ function shellSort(items, opts, paperType = STRATH_SMALL) {
   const original = items.map(a => a);
 
   const sortFn = sort.shell;
+  const exchangeFn = exchangeIndices;
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
+
+  draw(original, sorted, width, height, opts);
+}
+
+function combSort(items, opts, paperType = STRATH_SMALL) {
+  const PAPER_SIZE = paperType.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.comb;
+  const exchangeFn = exchangeIndices;
+
+  const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
+
+  draw(original, sorted, width, height, opts);
+}
+
+function selectionSort(items, opts, paperType = STRATH_SMALL) {
+  const PAPER_SIZE = paperType.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.selection;
   const exchangeFn = exchangeIndices;
 
   const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
@@ -337,7 +364,49 @@ function repeatItems(times, palette) {
   return arr;
 }
 
-function draw(original, sorted, width, height, opts={}) {
+// function draw(original, sorted, width, height, opts={}) {
+//   const nLines = original.length;
+//   const margin = 100;
+//   const vStepSize = (height - margin) / nLines;
+//   const hStepSize = (width - margin) / sorted.length;
+//   const segments = [];
+//   for (let i = 0; i < nLines; i++) {
+//     segments.push([]);
+//   }
+//   for (let i = 0; i < sorted.length; i++) {
+//     const step = sorted[i];
+//     const x = i * hStepSize;
+//     for (let j = 0; j < nLines; j++) {
+//       const y = j * vStepSize + vStepSize / 2;
+//       segments[step.list[j].id].push([x, y]);
+//     }
+//   }
+//   const paths = [];
+//   for (let i = 0; i < segments.length; i++) {
+//     const segment = segments[i];
+//     // add starting point and end point
+//     const start = new Point(segment[0]).subtract(margin / 4, 0);
+//     const end = new Point(segment[segment.length - 1]).add(margin / 4, 0);
+//     const s = [start, ...segment, end];
+//     const pen = original[i].pen
+//     pens.withPen(pen, ({ color }) => {
+//       const path = new Path({
+//         segments: s,
+//         strokeColor: color
+//       });
+//       path.translate(margin / 2);
+//       if (opts.smoothing) {
+//         path.smooth(opts.smoothing);
+//       }
+//       if (opts.simplify) {
+//         path.simplify(opts.simplify);
+//       }
+//       paths.push(path);
+//     });
+//   }
+// }
+
+function draw(original, sorted, width, height, opts = {}) {
   const nLines = original.length;
   const margin = 100;
   const vStepSize = (height - margin) / nLines;
@@ -346,6 +415,11 @@ function draw(original, sorted, width, height, opts={}) {
   for (let i = 0; i < nLines; i++) {
     segments.push([]);
   }
+  // for (let i = 0; i < original.length; i++) {
+  //   const x = -(margin/4);
+  //   const y = i * vStepSize;
+  //   segments[original[i].id].push([x, y]);
+  // }
   for (let i = 0; i < sorted.length; i++) {
     const step = sorted[i];
     const x = i * hStepSize;
@@ -361,7 +435,8 @@ function draw(original, sorted, width, height, opts={}) {
     const start = new Point(segment[0]).subtract(margin / 4, 0);
     const end = new Point(segment[segment.length - 1]).add(margin / 4, 0);
     const s = [start, ...segment, end];
-    const pen = original[i].pen
+    const pen = opts.reversePen ? sorted[sorted.length - 1].list[i].pen : original[i].pen;
+    // const pen = sorted[sorted.length-1].list[i].pen;
     pens.withPen(pen, ({ color }) => {
       const path = new Path({
         segments: s,
@@ -380,24 +455,33 @@ function draw(original, sorted, width, height, opts={}) {
 }
 
 function splitReverse(arr, depth=0) {
-  const length = Math.floor(arr.length / 2)
+  const length = Math.floor(arr.length / 2);
   if (!depth) {
     return [
-      ...reverse(arr.slice(length)),
       ...reverse(arr.slice(0, length)),
+      ...reverse(arr.slice(length)),
     ]; 
   } else {
     return [
-      ...splitReverse(reverse(arr.slice(length)), depth - 1),
       ...splitReverse(reverse(arr.slice(0, length)), depth - 1),
+      ...splitReverse(reverse(arr.slice(length)), depth - 1),
+
+      // ...splitReverse(arr.slice(0, length), depth - 1),
+      // ...splitReverse(arr.slice(length), depth - 1),
     ]; 
   }
 }
 
 // quickSort(uniformRandomItems(200, palettes.palette_large));
-// let items = repeatItems(25, palettes.palette_rgb3);
-// items = splitReverse(items, 3);
-// quickSort(items);
+let items = reverseItems(25, palettes.palette_rgb3);
+items = splitReverse(items, 3);
+quickSort(items, {
+  reversePen: true,
+  smoothing: {
+    type: 'catmull-rom',
+    factor: 0.7
+  }
+});
 // quickSort(repeatItems(12, palettes.palette_large));
 
 // mergeSort(uniformRandomItems(200, palettes.palette_large));
@@ -408,13 +492,20 @@ function splitReverse(arr, depth=0) {
 // heapSort(reverseItems(15, palettes.palette_large));
 // heapSort(repeatItems(15, palettes.palette_hot_and_cold));
 
-bogoSort(repeatItems(4, palettes.palette_neon));
+// bogoSort(repeatItems(4, palettes.palette_neon));
 
-// cocktailSort(reverseItems(10, palettes.palette_hot_and_cold));
+// cocktailSort(reverseItems(14, palettes.palette_hot_and_cold));
 // palettes.palette_blues_and_greens.reverse();
 // cocktailSort(reverseItems(14, palettes.palette_blues_and_greens));
 
-// cycleSort(repeatItems(14, palettes.palette_hot_and_cold), {
+// cycleSort(splitReverse(repeatItems(14, palettes.palette_hot_and_cold), 0), {
+//   smoothing: {
+//     type: 'catmull-rom',
+//     factor: 0.9
+//   }
+// });
+
+// cycleSort(splitReverse(reverseItems(14, palettes.palette_hot_and_cold), 2), {
 //   smoothing: {
 //     type: 'catmull-rom',
 //     factor: 0.9
@@ -426,9 +517,37 @@ bogoSort(repeatItems(4, palettes.palette_neon));
 // shellSort(reverseItems(25, palettes.palette_lego));
 // shellSort(reverseItems(14, palettes.palette_large), {}, A4);
 
-// sortLinesByColor(200, sort.quick, palette_large);
+// combSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
+// combSort(repeatItems(14, palettes.palette_hot_and_cold));
+// combSort(splitReverse(repeatItems(20, palettes.palette_hot_and_cold), 4));
+// combSort(splitReverse(reverseItems(16, palettes.palette_flowers), 0));
+// combSort(reverseItems(14, palettes.palette_large), {}, A4);
+
+// selectionSort(splitReverse(reverseItems(14, palettes.palette_garden), 0), {
+//   reversePen: true,
+//   smoothing: {
+//     type: 'catmull-rom',
+//     factor: 0.9
+//   }
+// });
+
+// selectionSort(reverseItems(14, palettes.palette_garden), {
+//   reversePen: true,
+//   smoothing: {
+//     type: 'catmull-rom',
+//     factor: 0.9
+//   }
+// });
+
+// sortLinesByColor(100, sort.comb, palettes.palette_large);
 // sortLinesByColor(200, sort.merge, palette_large);
 // sortLinesByColor(100, sort.cycle, palettes.palette_large);
+// sortLinesByColor(100, sort.selection, palettes.palette_garden, {
+//   smoothing: {
+//     type: 'catmull-rom',
+//     factor:0.9
+//   }
+// });
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);

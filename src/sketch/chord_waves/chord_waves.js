@@ -1,13 +1,13 @@
 import paper, { Point, Path } from 'paper';
 import math, { random, randomInt } from 'mathjs';
-import { range, partition, sortBy, isFunction, sum } from 'lodash';
-import please from 'pleasejs';
+import { range, partition, sortBy, isFunction, sum, last } from 'lodash';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
-  saveAsSVG, shuffle, choose, maprange
+  saveAsSVG, choose, maprange, radiansToDegrees, clipBounds
 } from 'common/utils';
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
+import { WaveGroup, StackedWaveGroup, OverlappedWaveGroup, InterleavedWaveGroup, BufferGroup } from './WaveGroup';
 
 window.math = math;
 window.range = range;
@@ -27,11 +27,11 @@ function square() {}
 function tri() {}
 
 // TODO: Should be useful as amplitude functions.
-function line({ from = 1, to = 0, dur = 1, sampleRate = 44100 }) {
+function line({ from = 1, to = 0, dur = 1, sampleRate = 44100, mul = 1, add = 0 } = {}) {
   return (n) => {
     const time = n / sampleRate;
     const val = maprange(time, 0, dur, from, to);
-    return val;
+    return (val * mul) + add;
   }
 }
 function adsr() {}
@@ -40,7 +40,7 @@ class Wave {
   constructor({ freq = 440, amp = 1, phase = 0, sampleRate = 44100, pen } = {}) {
     this.freq = isFunction(freq) ? freq : () => freq;
     this.amp = isFunction(amp) ? amp : () => amp;
-    this.phase = 0;
+    this.phase = phase;
     this.sampleRate = sampleRate;
     this.pen = pen;
   }
@@ -51,386 +51,6 @@ class Wave {
       amp: this.amp(n),
       phase: this.phase
     }, n / this.sampleRate);
-  }
-}
-
-class WaveGroup {
-  constructor(waves) {
-    this.waves = waves;
-  }
-
-  draw(pos, nSamples, waveWidth, obscurors = []) {
-    this.pos = pos;
-    this.nSamples = nSamples;
-    this.waveWidth = waveWidth;
-
-    const stepSize = waveWidth / nSamples;
-    for (let i = 0; i < this.waves.length; i++) {
-      const wave = this.waves[i];
-      for (let j = 0; j < nSamples; j++) {
-        const sample = wave.sample(j);
-        const from = pos.add(stepSize * j, 0);
-        const to = from.subtract(0, sample);
-        pens.withPen(wave.pen, ({ color }) => {
-          const segments = obscureSegment(obscurors, [from, to]);
-          for (let [from, to] of segments) {
-            new Path.Line({
-              from,
-              to,
-              strokeColor: color
-            });
-          }
-        });
-      }
-    }
-  }    
-
-  obscure(from, to) {
-    const step = this.waveWidth / this.nSamples;
-    const pos = from.subtract(this.pos);
-    const sampleTime = pos.x / step;
-    const samples = this.waves.map(wave => -wave.sample(sampleTime));
-    if (pos.x < 0 || pos.x > this.waveWidth) {
-      return [[from, to]];
-    } else {
-      const [negatives, positives] = partition(samples, n => n < 0);
-
-      const top = this.pos.add(pos.x, negatives.length ? math.min(negatives) : 0);
-      const bottom = this.pos.add(pos.x, positives.length ? math.max(positives) : 0);
-
-      // FIXME: This doesn't when from or to start between top or bottom.
-      const segments = [];
-      if (
-        (from.y < top.y && to.y < top.y) || // both points are above wave.
-        (from.y > bottom.y && to.y > bottom.y) // both points are below wave.
-      ) {
-        segments.push([from, to]);
-        return segments;
-      }
-
-      if (from.y < top.y) {
-        segments.push([from, top]);
-      } else if (from.y > bottom.y) {
-        segments.push([from, bottom]);
-      }
-
-      if (to.y < top.y) {
-        segments.push([to, top]);
-      } else if (to.y > bottom.y) {
-        segments.push([to, bottom]);
-      }
-
-      return segments;
-    }
-  }
-}
-
-class InterleavedWaveGroup extends WaveGroup {
-  constructor(waves) {
-    super();
-    this.waves = waves;
-  }
-
-  draw(pos, nSamples, waveWidth, obscurors=[]) {
-    this.pos = pos;
-    this.nSamples = nSamples;
-    this.waveWidth = waveWidth;
-
-    const stepSize = waveWidth / nSamples;
-    for (let i = 0; i < nSamples; i++) {
-      const samples = [];
-      for (let j = 0; j < this.waves.length; j++) {
-        const wave = this.waves[j];
-        samples.push({
-          sample: wave.sample(i),
-          pen: wave.pen
-        });
-      }
-
-      drawInterleavedSamples(
-        samples,
-        pos.add(stepSize * i, 0),
-        pos.add(stepSize * (i + 1), 0),
-        obscurors
-      );
-    }
-  }
-}
-
-class CurveWaveGroup extends WaveGroup {
-  constructor(waves) {
-    super();
-    this.waves = waves;
-  }
-
-  draw(pos, nSamples, waveWidth, obscurors = []) {
-    this.pos = pos;
-    this.nSamples = nSamples;
-    this.waveWidth = waveWidth;
-
-    const stepSize = waveWidth / nSamples;
-    for (let i = 0; i < this.waves.length; i++) {
-      const wave = this.waves[i];
-      const segments = [];
-      for (let j = 0; j < nSamples; j++) {
-        const sample = wave.sample(j);
-        segments.push(pos.add(stepSize * j, -sample));
-      }
-      pens.withPen(wave.pen, ({ color }) => {
-        new Path({
-          segments,
-          strokeColor: color
-        });
-      });
-    }
-  }
-
-  obscure (from, to) {
-    return [[from, to]];
-  }
-}
-
-class OverlappedWaveGroup extends WaveGroup {
-  constructor(waves) {
-    super();
-    this.waves = waves;
-  }
-
-  draw(pos, nSamples, waveWidth, obscurors=[]) {
-    this.pos = pos;
-    this.nSamples = nSamples;
-    this.waveWidth = waveWidth;
-
-    const stepSize = waveWidth / nSamples;
-    for (let i = 0; i < nSamples; i++) {
-      const samples = [];
-      for (let j = 0; j < this.waves.length; j++) {
-        const wave = this.waves[j];
-        samples.push({
-          sample: wave.sample(i),
-          pen: wave.pen
-        });
-      }
-
-      drawOverlapSamples(samples, pos.add(stepSize * i, 0), obscurors);
-    }
-  }
-}
-
-class StackedWaveGroup extends WaveGroup {
-  constructor(waves) {
-    super();
-    this.waves = waves;
-  }
-
-  draw(pos, nSamples, waveWidth, obscurors = []) {
-    this.pos = pos;
-    this.nSamples = nSamples;
-    this.waveWidth = waveWidth;
-
-    const stepSize = waveWidth / nSamples;
-    for (let i = 0; i < nSamples; i++) {
-      const samples = [];
-      for (let j = 0; j < this.waves.length; j++) {
-        const wave = this.waves[j];
-        samples.push({
-          sample: wave.sample(i),
-          pen: wave.pen
-        });
-      }
-
-      drawStackedSamples(samples, pos.add(stepSize * i, 0), obscurors);
-    }
-  }
-
-  obscure(from, to) {
-    const step = this.waveWidth / this.nSamples;
-    const pos = from.subtract(this.pos);
-    const sampleTime = pos.x / step;
-    const samples = this.waves.map(wave => -wave.sample(sampleTime));
-    if (pos.x < 0 || pos.x > this.waveWidth) {
-      return [[from, to]];
-    } else {
-      const [negatives, positives] = partition(samples, n => n < 0);
-
-      const top = this.pos.add(pos.x, sum(negatives));
-      const bottom = this.pos.add(pos.x, sum(positives));
-      
-      const segments = [];
-      if (
-        (from.y < top.y && to.y < top.y) || // both points are above wave.
-        (from.y > bottom.y && to.y > bottom.y) // both points are below wave.
-      ) {
-        segments.push([from, to]);
-        return segments;
-      }
-
-      if (from.y < top.y) {
-        segments.push([from, top]);
-      } else if (from.y > bottom.y) {
-        segments.push([from, bottom]);
-      }
-
-      if (to.y < top.y) {
-        segments.push([to, top]);
-      } else if (to.y > bottom.y) {
-        segments.push([to, bottom]);
-      }
-
-      return segments;
-    }
-  }
-}
-
-class BufferGroup {
-  constructor(buffer) {
-    this.buffer = buffer;
-  }
-
-  draw() {
-    const scale = 50;
-    const channel = this.buffer.getChannelData(0);
-    const segments = [];
-    const pos = new Point(10, height / 2);
-    const stepSize = 1000 / channel.length;
-    for (let i = 0; i < channel.length; i++) {
-      const sample = scale * channel[i];
-      segments.push(pos.add(i * stepSize, sample));
-    }
-    new Path({
-      segments,
-      strokeColor: 'black'
-    });
-  }
-}
-
-function obscureSegment(obscurors, segment) {
-  if (!obscurors.length) {
-    return [segment];
-  } else {
-    return obscurors.reduce((acc, obs) => {
-      let ret = [];
-      for (let [from, to] of acc) {
-        ret = ret.concat(obs.obscure(from, to));
-      }
-      return ret;
-    }, [segment]);
-  }
-}
-
-function drawOverlapSamples(samples, base, obscurors) {
-  const [negatives, positives] = partition(samples, n => n.sample < 0);
-
-  const negSorted = sortBy(negatives, wave => Math.abs(wave.sample));
-  const posSorted = sortBy(positives, wave => wave.sample);
-
-  {
-    let from = base;
-    let previousSample = 0;
-    for (let i = 0; i < posSorted.length; i++) {
-      const wave = posSorted[i];
-      const to = from.subtract(0, wave.sample - previousSample);
-      pens.withPen(wave.pen, ({ color }) => {
-        const segments = obscureSegment(obscurors, [from, to]);
-        for (let segment of segments) {
-          new Path.Line({
-            from: segment[0],
-            to: segment[1],
-            strokeColor: color
-          });
-        }
-      });
-      previousSample = wave.sample;
-      from = to;
-    }
-  }
-
-  {
-    let from = base;
-    let previousSample = 0;
-    for (let i = 0; i < negSorted.length; i++) {
-      const wave = negSorted[i];
-      const to = from.subtract(0, wave.sample - previousSample);
-      pens.withPen(wave.pen, ({ color }) => {
-        const segments = obscureSegment(obscurors, [from, to]);
-        for (let segment of segments) {
-          new Path.Line({
-            from: segment[0],
-            to: segment[1],
-            strokeColor: color
-          });
-        }
-      });
-      previousSample = wave.sample;
-      from = to;
-    }
-  }
-}
-
-function drawStackedSamples(samples, base, obscurors) {
-  const [negatives, positives] = partition(samples, n => n.sample < 0);
-
-  {
-    let from = base;
-    for (let i = 0; i < positives.length; i++) {
-      const wave = positives[i];
-      const to = from.subtract(0, wave.sample);
-      pens.withPen(wave.pen, ({ color }) => {
-        const segments = obscureSegment(obscurors, [from, to]);
-        for (let segment of segments) {
-          new Path.Line({
-            from: segment[0],
-            to: segment[1],
-            strokeColor: color
-          });
-        }
-      });
-      from = to;
-    }
-  }
-
-  {
-    let from = base;
-    for (let i = 0; i < negatives.length; i++) {
-      const wave = negatives[i];
-      const to = from.subtract(0, wave.sample);
-      pens.withPen(wave.pen, ({ color }) => {
-        const segments = obscureSegment(obscurors, [from, to]);
-        for (let segment of segments) {
-          new Path.Line({
-            from: segment[0],
-            to: segment[1],
-            strokeColor: color
-          });
-        }
-      });
-      from = to;
-    }
-  }
-}
-
-/**
- * 
- * @param {*} samples - array of waves
- * @param {*} from - point where the sample drawing begins
- * @param {*} to - point where the last sample drawing ends, not inclusive.
- */
-function drawInterleavedSamples(samples, start, end, obscurors) {
-  const stepSize = end.subtract(start).x / samples.length;
-  for (let i = 0; i < samples.length; i++) {
-    const wave = samples[i];
-    const from = start.add(stepSize * i, 0);
-    const to = from.subtract(0, wave.sample);
-    pens.withPen(wave.pen, ({color}) => {
-      const segments = obscureSegment(obscurors, [from, to]);
-      for (let segment of segments) {
-        new Path.Line({
-          from: segment[0],
-          to: segment[1],
-          strokeColor: color
-        });
-      }
-    });
   }
 }
 
@@ -459,10 +79,8 @@ function threeWaves () {
   interleaved.draw(middle, nSamples, waveWidth);
   overlapped.draw(bottom, nSamples, waveWidth);
 }
-// threeWaves();
 
 function overtones() {
-  // TODO: Needs a border!
   const hmargin = 40;
   const sampleRate = 44100 / 4;
   const nSamples = 100;
@@ -566,7 +184,6 @@ function overtones() {
     })
   }
 }
-overtones();
 
 function pulseDensity () {
   const nSamples = 200;
@@ -606,7 +223,6 @@ function pulseDensity () {
     }
   }
 }
-// pulseDensity();
 
 function randomAmplitudes() {
   const sampleRate = 44100 / 4;
@@ -619,7 +235,6 @@ function randomAmplitudes() {
 
   waveGroup.drawStacked(new Point(20, height / 2), 500, 600);
 }
-// randomAmplitudes();
 
 /**
  * ART1
@@ -667,7 +282,7 @@ function art1() {
     }
   }
 }
-// art1();
+
 
 function amplitudeModulation() {
   const sampleRate = 44100 / 2;
@@ -680,10 +295,6 @@ function amplitudeModulation() {
   wave.draw(pos, 2000, 1000);
 }
 // amplitudeModulation();
-
-window.saveAsSvg = function save(name) {
-  saveAsSVG(paper.project, name);
-}
 
 function audioApiTest() {
   const sampleRate = 44100 / 4;
@@ -703,7 +314,8 @@ function audioApiTest() {
   osc.stop(ctx.currentTime + 1.5);
   ctx.startRendering().then((renderedBuffer) => {
     buffer = renderedBuffer;
-    new BufferGroup(renderedBuffer).draw();
+    const pos = new Point(10, height / 2);
+    new BufferGroup(renderedBuffer).draw(pos);
   });
 
   function vibrato(ctx, param, {rate=5, depth=10}={}) {
@@ -724,4 +336,153 @@ function audioApiTest() {
     sound.start();
   }
 }
+
+function overlaps() {
+  const margin = 50;
+  const sampleRate = 44100 / 4;
+  const nSamples = 200;
+
+  // const waves = [
+  //   new Wave({ freq: 550, amp: line({ sampleRate, from: 0, to: 50, dur: nSamples / sampleRate }), pen: pens.STABILO_88_22, sampleRate }),
+  //   new Wave({ freq: 100, amp: 50, pen: pens.STABILO_88_22, sampleRate }),
+  //   new Wave({ freq: 170, amp: line({sampleRate, from: 50, to: 0, dur: nSamples / sampleRate }), pen: pens.STABILO_88_40, sampleRate })
+  // ];
+  // const poss = [
+  //   new Point(margin + 100, height / 2 - 150),
+  //   new Point(margin, height / 2),
+  //   new Point(margin + 100, height / 2 + 100)
+  // ];
+
+  const nWaves = 5;
+  const waves = [];
+  const poss = [];
+  for (let i = 0; i < nWaves; i++) {
+    const wave = new Wave({ 
+      freq: random(100, 400), 
+      amp: line({ sampleRate, from: random(100), to: random(100), dur: nSamples / sampleRate }), 
+      pen: pens.STABILO_88_22, 
+      sampleRate 
+    });
+    waves.push(wave);
+    poss.push(new Point(margin + random(200), margin + (height / nWaves) * (i)))
+  }
+  
+  // const wave = new CurveWaveGroup([
+  //   new Wave({ freq: 100, amp: 50, pen: pens.STABILO_88_22, sampleRate }),
+  //   new Wave({ freq: 170, amp: 50, pen: pens.STABILO_88_40, sampleRate })
+  // ]);
+  // wave.draw(new Point(0, height/ 2), nSamples, width);
+
+  // const inBounds = (point) => (
+  //   point.x > margin && point.x < width - margin && point.y > margin && point.y < height - margin
+  // );
+
+  let vec = new Point({ angle: 45, length: 100 });
+  const step = (width - 2 * margin) / nSamples;
+  const paths = [];
+  for (let i = 0; i < nSamples; i++) {
+    const samples = waves.map(wave => wave.sample(i));
+    for (let j = 1; j < waves.length; j++) {
+      const s0 = samples[j-1];
+      const s1 = samples[j];
+      const from = poss[j-1].add(i * step, -s0);
+      const to = poss[j].add(i * step, -s1);
+      paths.push([from, to]);
+    }
+  }
+
+  clipToBorder({
+    from: [50, 50],
+    to: [width - 50, height - 50],
+    strokeColor: 'black'
+  }, paths).map(segments => {
+    return new Path({
+      segments,
+      strokeColor: 'black',
+      strokeWidth: 0.5
+    });
+  });
+}
+
+
+function clipLine(rect, [from, to]) {
+  const fromContained = rect.contains(from);
+  const toContained = rect.contains(to);
+  if (fromContained && toContained) {
+    return [from, to];
+  } else if (!fromContained && !toContained) {
+    return [];
+  } else if (fromContained && !toContained) {
+    const line = new Path.Line({
+      from,
+      to
+    });
+    const intersections = line.getIntersections(rect);
+    if (intersections.length !== 1) {
+      throw new Error('Something Wrong! Intersections should be equal to 1.');
+    }
+    line.remove();
+    return [from, intersections[0].point];
+  } else if (!fromContained && toContained) {
+    const line = new Path.Line({
+      from,
+      to
+    });
+    const intersections = line.getIntersections(rect);
+    if (intersections.length !== 1) {
+      throw new Error('Something Wrong! Intersections should be equal to 1.');
+    }
+    line.remove();
+    return [intersections[0].point, to];
+  } else {
+    throw new Error('Should not reach this point.');
+  }
+}
+
+function clipToBorder(border, paths) {
+  const rect = new Path.Rectangle(border);
+  const clippedPaths = [];
+  for (let i = 0; i < paths.length; i++) {
+    const path = paths[i];
+    let clipped = [];
+    for (let j = 1; j < path.length; j++) {
+      const points = clipLine(rect, [path[j - 1], path[j]]);
+      if (!points.length) {
+        if (clipped.length) {
+          clippedPaths.push(clipped);
+        }
+        clipped = [];
+      } else if (points[0].equals(last(clipped))) {
+        clipped.push(points[1]);
+      } else {
+        clipped = clipped.concat(points);
+      }
+    }
+    clippedPaths.push(clipped);
+    // const intersections = path.getIntersections(rect);
+    // if (intersections.length) {
+    //   intersections.map(intersection => new Path.Circle({
+    //     radius: 2,
+    //     strokeColor: 'red',
+    //     center: intersection.point
+    //   }));
+    // }
+  }
+  // rect.remove();
+  return clippedPaths;
+}
+
+/* run examples */
+
+// threeWaves();
+// overtones();
+// pulseDensity();
+// randomAmplitudes();
+// art1();
 // audioApiTest();
+overlaps();
+
+
+window.saveAsSvg = function save(name) {
+  saveAsSVG(paper.project, name);
+}
