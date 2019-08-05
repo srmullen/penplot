@@ -12,11 +12,6 @@ import { WaveGroup, StackedWaveGroup, OverlappedWaveGroup, InterleavedWaveGroup,
 window.math = math;
 window.range = range;
 
-const PAPER_SIZE = A4.landscape;
-const [width, height] = PAPER_SIZE;
-const canvas = createCanvas(PAPER_SIZE);
-paper.setup(canvas);
-
 function sine({ freq = 440, amp = 1, phase = 0 } = {}, time) {
   return amp * math.sin((2 * math.PI * freq * time) + phase);
 }
@@ -26,14 +21,13 @@ function saw() {}
 function square() {}
 function tri() {}
 
-// TODO: Should be useful as amplitude functions.
-function line({ from = 1, to = 0, dur = 1, sampleRate = 44100, mul = 1, add = 0 } = {}) {
-  return (n) => {
-    const time = n / sampleRate;
+function line({ from = 1, to = 0, dur = 1, mul = 1, add = 0 } = {}) {
+  return (time) => {
     const val = maprange(time, 0, dur, from, to);
     return (val * mul) + add;
   }
 }
+
 function adsr() {}
 
 class Wave {
@@ -47,14 +41,27 @@ class Wave {
 
   sample(n) {
     return sine({
-      freq: this.freq(n),
-      amp: this.amp(n),
+      freq: this.freq(n / this.sampleRate),
+      amp: this.amp(n / this.sampleRate),
       phase: this.phase
     }, n / this.sampleRate);
+  }
+
+  at(time) {
+    return sine({
+      freq: this.freq(time),
+      amp: this.amp(time),
+      phase: this.phase
+    }, time);
   }
 }
 
 function threeWaves () {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const sampleRate = 44100 / 4;
   const nSamples = 200;
   const waveWidth = 700;
@@ -81,6 +88,11 @@ function threeWaves () {
 }
 
 function overtones() {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const hmargin = 40;
   const sampleRate = 44100 / 4;
   const nSamples = 100;
@@ -186,6 +198,11 @@ function overtones() {
 }
 
 function pulseDensity () {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const nSamples = 200;
   const minDist = 2
   const sampleRate = 44100 / 4;
@@ -209,7 +226,7 @@ function pulseDensity () {
     const wave = waves[i];
     for (let j = 0; j < nSamples; j++) {
       const to = pos.add(0, height - 20);
-      const segments = waveGroup.interleavedObscure(pos, to);
+      const segments = waveGroup.obscure(pos, to);
       for (let segment of segments) {
         new Path.Line({
           from: segment[0],
@@ -225,6 +242,11 @@ function pulseDensity () {
 }
 
 function randomAmplitudes() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const sampleRate = 44100 / 4;
   const waveGroup = new WaveGroup([
     new Wave({ freq: random(50, 150), amp: () => random(20, 50), phase: random(math.PI * 2), sampleRate, pen: pens.STABILO_88_40 }),
@@ -233,7 +255,7 @@ function randomAmplitudes() {
     new Wave({ freq: 300, amp: () => 15, sampleRate, pen: pens.STABILO_88_22 }),
   ]);
 
-  waveGroup.drawStacked(new Point(20, height / 2), 500, 600);
+  waveGroup.draw(new Point(20, height / 2), 500, 600);
 }
 
 /**
@@ -241,7 +263,12 @@ function randomAmplitudes() {
  * Small waves dying out. Larger ones growing.
  */
 function art1() {
-  const nGroups = 10;
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const nGroups = 100;
   const hmargin = 50;
   const vmargin = 50;
   const waveGroups = [];
@@ -262,7 +289,7 @@ function art1() {
       const [from, to] = (pos.x > width * 1/5) ? [maxAmp, 0] : [0, maxAmp];
       // const from = 0;
       // const to = maxAmp;
-      const amp = line({ from, to, dur: nSamples / sampleRate, sampleRate });
+      const amp = line({ from, to, dur: nSamples / sampleRate });
       waves.push(new Wave({
         freq: random(250, 550),
         amp,
@@ -297,6 +324,11 @@ function amplitudeModulation() {
 // amplitudeModulation();
 
 function audioApiTest() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const sampleRate = 44100 / 4;
   let buffer = null;
   const ctx = new OfflineAudioContext(1, sampleRate * 2, sampleRate);
@@ -337,21 +369,16 @@ function audioApiTest() {
   }
 }
 
-function overlaps() {
+function overlaps1() {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const margin = 50;
   const sampleRate = 44100 / 4;
   const nSamples = 200;
-
-  // const waves = [
-  //   new Wave({ freq: 550, amp: line({ sampleRate, from: 0, to: 50, dur: nSamples / sampleRate }), pen: pens.STABILO_88_22, sampleRate }),
-  //   new Wave({ freq: 100, amp: 50, pen: pens.STABILO_88_22, sampleRate }),
-  //   new Wave({ freq: 170, amp: line({sampleRate, from: 50, to: 0, dur: nSamples / sampleRate }), pen: pens.STABILO_88_40, sampleRate })
-  // ];
-  // const poss = [
-  //   new Point(margin + 100, height / 2 - 150),
-  //   new Point(margin, height / 2),
-  //   new Point(margin + 100, height / 2 + 100)
-  // ];
+  const duration = 1; // seconds
 
   const nWaves = 5;
   const waves = [];
@@ -359,24 +386,15 @@ function overlaps() {
   for (let i = 0; i < nWaves; i++) {
     const wave = new Wave({ 
       freq: random(100, 400), 
-      amp: line({ sampleRate, from: random(100), to: random(100), dur: nSamples / sampleRate }), 
+      amp: line({ from: random(100), to: random(100), dur: nSamples / sampleRate }), 
       pen: pens.STABILO_88_22, 
       sampleRate 
     });
     waves.push(wave);
-    poss.push(new Point(margin + random(200), margin + (height / nWaves) * (i)))
+    poss.push(new Point(margin + random(200), margin + (height / nWaves) * (i)));
+    // poss.push(new Point(margin, margin + (height / nWaves) * (i)));
   }
   
-  // const wave = new CurveWaveGroup([
-  //   new Wave({ freq: 100, amp: 50, pen: pens.STABILO_88_22, sampleRate }),
-  //   new Wave({ freq: 170, amp: 50, pen: pens.STABILO_88_40, sampleRate })
-  // ]);
-  // wave.draw(new Point(0, height/ 2), nSamples, width);
-
-  // const inBounds = (point) => (
-  //   point.x > margin && point.x < width - margin && point.y > margin && point.y < height - margin
-  // );
-
   let vec = new Point({ angle: 45, length: 100 });
   const step = (width - 2 * margin) / nSamples;
   const paths = [];
@@ -404,6 +422,90 @@ function overlaps() {
   });
 }
 
+function overlaps2() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const margin = 25;
+  const duration = 0.1; // seconds
+
+  const nWaves = 20;
+  // const nWaves = palettes.palette_large.length;
+  const freq = 15;
+
+  const waves = createHarmonicSeries(freq, nWaves, duration);
+  const poss = [];
+  for (let i = nWaves-1; i >= 0; i--) {
+    // poss.push(new Point(margin, margin + (height / (nWaves + 2)) * (i + 1)));
+    poss.push(new Point(0, (height / (nWaves + 2)) * (i + 1)));
+  }
+
+  const nextTime = (time, i, phase) => {
+    return time +  0.0002 * Math.abs(Math.sin(i * 0.01 * 2 * Math.PI + phase)) + 0.0004;
+  }
+
+  const wavePoints = [];
+  const paths = [];
+  for (let i = 0; i < waves.length; i++) {
+    const wave = waves[i];
+    const pos = poss[i];
+    const waveForm = [];
+    const phase = math.phi * i;
+    for (let time = 0, j = 0; time < duration && j < 20000; time = nextTime(time, j, phase), j++) {
+      const sample = wave.at(time);
+
+      const from = pos.add((time / duration) * width, 0);
+      const to = from.add(0, sample);
+      waveForm.push(to);
+    }
+    wavePoints.push(waveForm);
+  }
+
+  const nSamples = math.min(wavePoints.map(s => s.length));
+  for (let i = 1; i < waves.length; i++) {
+    const lines = [];
+    for (let j = 0; j < nSamples; j++) {
+      const from = wavePoints[i - 1][j];
+      const to = wavePoints[i][j];
+      lines.push([from, to]);
+    }
+    paths.push(lines);
+  }
+
+  const palette = palettes.palette_hot_and_cold;
+  // const palette = palettes.palette_lego;
+  // const palette = palettes.palette_large;
+  // const palette = palettes.palette_rgb3;
+  paths.forEach((lines, i) => {
+    pens.withPen(palette[i % palette.length], ({ color }) => {
+      clipToBorder({
+        from: [margin, margin],
+        to: [width - margin, height - margin],
+        strokeColor: 'black'
+      }, lines).map(segments => {
+        return new Path({
+          segments,
+          strokeColor: color,
+          strokeWidth: 1
+        });
+      });
+    });  
+  });
+}
+
+function createHarmonicSeries(freq = 100, nWaves = 7, duration=1) {
+  const waves = [];
+  for (let i = 0; i < nWaves; i++) {
+    const wave = new Wave({
+      freq: freq * (i + 1),
+      amp: line({ from: 200 / ((i+1)/2), to: 0, dur: duration })
+    });
+    waves.push(wave);
+  }
+  return waves;
+}
 
 function clipLine(rect, [from, to]) {
   const fromContained = rect.contains(from);
@@ -418,22 +520,32 @@ function clipLine(rect, [from, to]) {
       to
     });
     const intersections = line.getIntersections(rect);
-    if (intersections.length !== 1) {
+    if (intersections.length === 0) {
       throw new Error('Something Wrong! Intersections should be equal to 1.');
+    } else if (intersections.length === 2) {
+      // to point lies on border;
+      line.remove();
+      return [from, intersections[0].point];
+    } else {
+      line.remove();
+      return [from, intersections[0].point];
     }
-    line.remove();
-    return [from, intersections[0].point];
   } else if (!fromContained && toContained) {
     const line = new Path.Line({
       from,
       to
     });
     const intersections = line.getIntersections(rect);
-    if (intersections.length !== 1) {
+    if (intersections.length === 0) {
       throw new Error('Something Wrong! Intersections should be equal to 1.');
+    } else if (intersections.length === 2) {
+      // from point lies on border.
+      line.remove();
+      return [intersections[1].point, to];  
+    } else {
+      line.remove();
+      return [intersections[0].point, to];
     }
-    line.remove();
-    return [intersections[0].point, to];
   } else {
     throw new Error('Should not reach this point.');
   }
@@ -468,7 +580,7 @@ function clipToBorder(border, paths) {
     //   }));
     // }
   }
-  // rect.remove();
+  rect.remove();
   return clippedPaths;
 }
 
@@ -480,7 +592,8 @@ function clipToBorder(border, paths) {
 // randomAmplitudes();
 // art1();
 // audioApiTest();
-overlaps();
+// overlaps1();
+overlaps2();
 
 
 window.saveAsSvg = function save(name) {
