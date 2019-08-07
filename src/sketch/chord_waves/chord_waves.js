@@ -1,6 +1,6 @@
 import paper, { Point, Path } from 'paper';
 import math, { random, randomInt } from 'mathjs';
-import { range, partition, sortBy, isFunction, sum, last } from 'lodash';
+import { range, partition, sortBy, isFunction, sum, last, remove } from 'lodash';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
   saveAsSVG, choose, maprange, radiansToDegrees, clipBounds
@@ -8,6 +8,7 @@ import {
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { WaveGroup, StackedWaveGroup, OverlappedWaveGroup, InterleavedWaveGroup, BufferGroup } from './WaveGroup';
+import { palette_blues_and_greens } from '../../common/palettes';
 
 window.math = math;
 window.range = range;
@@ -423,7 +424,7 @@ function overlaps1() {
 }
 
 function overlaps2() {
-  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const PAPER_SIZE = A4.landscape;
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
@@ -431,9 +432,9 @@ function overlaps2() {
   const margin = 25;
   const duration = 0.1; // seconds
 
-  const nWaves = 20;
-  // const nWaves = palettes.palette_large.length;
-  const freq = 15;
+  // const nWaves = 20;
+  const nWaves = palettes.palette_large.length + 1;
+  const freq = 10;
 
   const waves = createHarmonicSeries(freq, nWaves, duration);
   const poss = [];
@@ -443,7 +444,7 @@ function overlaps2() {
   }
 
   const nextTime = (time, i, phase) => {
-    return time +  0.0002 * Math.abs(Math.sin(i * 0.01 * 2 * Math.PI + phase)) + 0.0004;
+    return time +  0.0001 * Math.abs(Math.sin(i * 0.01 * 2 * Math.PI + phase)) + 0.0004;
   }
 
   const wavePoints = [];
@@ -474,15 +475,17 @@ function overlaps2() {
     paths.push(lines);
   }
 
-  const palette = palettes.palette_hot_and_cold;
+  // const palette = palettes.palette_hot_and_cold;
   // const palette = palettes.palette_lego;
-  // const palette = palettes.palette_large;
+  const palette = palettes.palette_large;
   // const palette = palettes.palette_rgb3;
   paths.forEach((lines, i) => {
     pens.withPen(palette[i % palette.length], ({ color }) => {
       clipToBorder({
-        from: [margin, margin],
-        to: [width - margin, height - margin],
+        // from: [margin, margin],
+        // to: [width - margin, height - margin],
+        from: [0, 0],
+        to: [width, height],
         strokeColor: 'black'
       }, lines).map(segments => {
         return new Path({
@@ -495,9 +498,167 @@ function overlaps2() {
   });
 }
 
-function createHarmonicSeries(freq = 100, nWaves = 7, duration=1) {
+function harmonicSeries() {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const margin = 20;
+
+  const sampleRate = 44100;
+  const duration = 0.2;
+  const nHarmonics = 14;
+  const ctxs = [];
+  const harmonics = [];
+  const freq = 5;
+  const amp = 100;
+  let harmonicIdxs = range(nHarmonics);
+  for (let i = 0; i < nHarmonics; i++) {
+    const ctx = new OfflineAudioContext(1, Math.floor(sampleRate * duration), sampleRate);
+    ctxs.push(ctx);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    // gain.gain.value = maxGain / (i+1);
+    // const maxGain = amp / ((i+1)/2);
+    const maxGain = amp;
+    
+    // const peakTime = ctx.currentTime + duration - (ctx.currentTime + (i * (duration / nHarmonics)));
+
+    const peakTime = ctx.currentTime + (i * (duration / nHarmonics));
+
+    // const harmIdx = choose(harmonicIdxs);
+    // harmonicIdxs = remove(harmonicIdxs, el => el === harmIdx);
+    // const peakTime = ctx.currentTime + (harmIdx * (duration / nHarmonics));
+
+    gain.gain.linearRampToValueAtTime(maxGain, peakTime);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+    // gain.gain.exponentialRampToValueAtTime(maxGain, peakTime);
+    // gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+    osc.frequency.value = freq * (i + 1);
+    // vibrato(ctx, osc.frequency, { rate: 10 });
+    // vibrato(ctx, gain.gain, { rate: 50, depth: 50 });
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    harmonics.push(osc);
+  }
+
+  harmonics.forEach((osc, i) => {
+    osc.start();
+    osc.stop(ctxs[i].currentTime + 1.5);
+  });
+
+  const buffers = [];
+  Promise.all(ctxs.map(ctx => {
+    return ctx.startRendering();
+  })).then((renderedBuffers) => {
+    renderedBuffers.forEach(buffer => {
+      buffers.push(buffer);
+      const pos = new Point(10, random(height));
+    });
+    drawBuffers(renderedBuffers);
+  });
+
+  function drawBuffers(buffers) {
+    const poss = [];
+    for (let i = buffers.length - 1; i >= 0; i--) {
+      poss.push(new Point(0, (height / (buffers.length + 2)) * (i + 1)));
+    }
+
+    const nextTime = (time, i, phase) => {
+      const minDist = 0.00005;
+      const amp = 0.0005; // maxDist
+      const freq = 0.01;
+      return time + amp * Math.abs(Math.sin(i * freq * 2 * Math.PI + phase)) + minDist;
+    }
+
+    const wavePoints = [];
+    const paths = [];
+    const converge = new Point(width, height / 2);
+    for (let i = 0; i < buffers.length; i++) {
+      const buffer = buffers[i];
+      const channel = buffer.getChannelData(0);
+      const pos = poss[i];
+      // const vec = converge.subtract(pos).divide(channel.length/50);
+      const waveForm = [];
+      const phase = math.phi * i;
+      for (let time = 0, j = 0; time < duration && j < 20000; time = nextTime(time, j, phase), j++) {
+        const sample = channel[Math.floor(time * sampleRate)];
+
+        const from = pos.add((time / duration) * width, 0);
+        const to = from.add(0, sample);
+        waveForm.push(to);
+      }
+      wavePoints.push(waveForm);
+    }
+
+    const nSamples = math.min(wavePoints.map(s => s.length));
+    for (let i = 1; i < buffers.length; i++) {
+      const lines = [];
+      for (let j = 0; j < nSamples; j++) {
+        const from = wavePoints[i - 1][j];
+        const to = wavePoints[i][j];
+        lines.push([from, to]);
+      }
+      paths.push(lines);
+    }
+
+    /* Clip paths and draw. */
+
+    // create light colored palette!
+    // const palette = palettes.palette_blues_and_greens;
+    // const palette = palettes.palette_frost_plus;
+    // const palette = palettes.palette_hot_and_cold;
+    // const palette = palettes.palette_lego;
+    // const palette = palettes.palette_large;
+    const palette = palettes.palette_rgb3;
+    // const palette = palettes.palette_neon;
+    // const palette = palettes.palette_cym;
+    paths.forEach((lines, i) => {
+      pens.withPen(palette[i % palette.length], ({ color }) => {
+        clipToBorder({
+          from: [margin, margin],
+          to: [width - margin, height - margin],
+          // from: [0, 0],
+          // to: [width, height],
+          strokeColor: 'black'
+        }, lines).map(segments => {
+          return new Path({
+            segments,
+            strokeColor: color,
+            strokeWidth: 1
+          });
+        });
+      });
+    });
+  }
+
+  function vibrato(ctx, param, { rate = 5, depth = 10 } = {}) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = rate;
+    const gain = ctx.createGain();
+    gain.gain.value = depth;
+    osc.connect(gain).connect(param);
+    osc.start();
+  }
+
+  // const actx = new AudioContext({ sampleRate });
+  // // Play the audio.
+  // paper.project.view.onClick = () => {
+  //   buffers.forEach(buffer => {
+  //     const sound = actx.createBufferSource();
+  //     sound.buffer = buffer;
+  //     sound.connect(actx.destination);
+  //     sound.start();
+  //   });
+  // }
+}
+
+function createHarmonicSeries(freq = 100, nHarmonics = 7, duration=1) {
   const waves = [];
-  for (let i = 0; i < nWaves; i++) {
+  for (let i = 0; i < nHarmonics; i++) {
     const wave = new Wave({
       freq: freq * (i + 1),
       amp: line({ from: 200 / ((i+1)/2), to: 0, dur: duration })
@@ -593,7 +754,8 @@ function clipToBorder(border, paths) {
 // art1();
 // audioApiTest();
 // overlaps1();
-overlaps2();
+// overlaps2();
+harmonicSeries();
 
 
 window.saveAsSvg = function save(name) {

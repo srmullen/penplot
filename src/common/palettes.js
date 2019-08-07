@@ -147,3 +147,12 @@ export const palette_rgb3 = [
   pens.STABILO_88_54,
   pens.STABILO_88_40,
 ];
+
+export const palette_cym = [
+  pens.STABILO_88_44,
+  pens.STABILO_88_56,
+  pens.STABILO_88_57
+  // [pens.STABILO_88_56, pens.STABILO_88_44],
+  // [pens.STABILO_88_56, pens.STABILO_88_57],
+  // [pens.STABILO_88_44, pens.STABILO_88_57]
+];
