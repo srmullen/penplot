@@ -1,6 +1,8 @@
 import paper, { Group, Layer, Color } from 'paper';
 import { isArray } from 'lodash';
 
+export const BLACK = 'BLACK';
+
 export const PRISMA05_RED = 'PRISMA05_RED';
 export const PRISMA05_GREEN = 'PRISMA05_GREEN';
 export const PRISMA05_BLUE = 'PRISMA05_BLUE';
@@ -96,6 +98,10 @@ export const stabilo88 = [
 ];
 
 export const penInfo = {
+  // Basic Colors
+  [BLACK]: {
+    color: 'black'
+  },
   [PRISMA05_RED]: {
     color: new Color('#f00'),
     strokeWidth: PRISMA_STROKE_WIDTH
@@ -253,34 +259,14 @@ window.penLayers = layers;
 
 export function withPen (pen, fn) {
   const previousLayer = paper.project.activeLayer;
+  if (!pen) {
+    return fn({});
+  }
   if (!layers[pen]) {
     layers[pen] = new Layer({name: pen});
-    // layers[pen] = new Group({name: pen});
   }
   layers[pen].activate();
   const ret = fn(info(pen));
-  // if (isArray(ret)) {
-  //   layers[pen].addChildren(ret);
-  // } else {
-  //   layers[pen].addChild(ret);
-  // }
   previousLayer.activate();
   return ret;
 };
-
-// export function withPen (pen, fn) {
-//   // const previousLayer = paper.project.activeLayer;
-//   if (!layers[pen]) {
-//     // layers[pen] = new Layer({name: pen});
-//     layers[pen] = new Group({name: pen});
-//   }
-//   // layers[pen].activate();
-//   const ret = fn(info(pen));
-//   if (isArray(ret)) {
-//     layers[pen].addChildren(ret);
-//   } else {
-//     layers[pen].addChild(ret);
-//   }
-//   // previousLayer.activate();
-//   return ret;
-// };
