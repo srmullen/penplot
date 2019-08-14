@@ -5,6 +5,8 @@ import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
   saveAsSVG, choose, maprange, radiansToDegrees, clipBounds, processOptions
 } from 'common/utils';
+import { Queue, OrderedSet } from 'common/datastructures';
+import { Problem, breadthFirstFlood } from 'common/search';
 import * as pens from 'common/pens';
 
 window.paper = paper;
@@ -15,8 +17,7 @@ const canvas = createCanvas(PAPER_SIZE);
 paper.setup(canvas);
 
 const seed = randomInt(2000);
-// const seed = 492;
-// const seed = 613;
+// const seed = 17; // needs fix to hatch function
 console.log(seed);
 // noise.seed(seed);
 math.config({ randomSeed: seed });
@@ -24,72 +25,19 @@ math.config({ randomSeed: seed });
 
 const stateKey = (state) => `${state.position[0]}-${state.position[1]}`;
 
-class Queue {
-  constructor(items = []) {
-    this.items = items;
-    this.length = this.items.length;
-  }
-
-  push(item) {
-    this.items.push(item);
-    this.length++;
-  }
-
-  pop() {
-    const [item, ...rest] = this.items;
-    this.items = rest;
-    this.length = rest.length;
-    return item;
-  }
-
-  contains(fn) {
-    return this.items.findIndex(fn) > -1;
-  }
-}
-
-class StateSet {
-  constructor(items = []) {
-    this.order = [];
-    this.items = items.reduce((acc, item) => {
-      const key = this.key(item);
-      this.order.push(key);
-      return { ...acc, [key]: item };
-    }, {});
-  }
-
-  add(item) {
-    const key = this.key(item);
-    if (!this.items[key]) {
-      this.order.push(key);
-      this.items[key] = item;
-    }
-  }
-
-  contains(item) {
-    const key = this.key(item);
-    return !!this.items[key];
-  }
-
-  remove(item) {
-    const key = this.key(item);
-    delete this.items[key];
-  }
-
+class StateSet extends OrderedSet {
   key(state) {
     return stateKey(state);
   }
+}
 
-  toArray() {
-    return this.order.map(key => this.items[key]);
+class TileQueue extends Queue {
+  contains(item) {
+    return this.items.findIndex(el => stateKey(el.state) === stateKey(item.state)) > -1;
   }
 }
 
-class Problem {
-  constructor(init, goal) {
-    this.init = init;
-    this.goal = goal;
-  }
-
+class GridProblem extends Problem {
   /**
    * Return the list of actions that can be executed from the given state.
    * @param {any} state 
@@ -134,45 +82,6 @@ class Problem {
     return this.actions(state).length === 0;
   }
 }
-
-class Node {
-  constructor(state, parent, action, cost = 0) {
-    this.state = state;
-    this.parent = parent;
-    this.action = action;
-    this.cost = cost;
-  }
-
-  /**
-   * List the nodes reachable in one step from this node.
-   */
-  expand(problem) {
-    const actions = problem.actions(this.state);
-    return actions.map(action => this.child(problem, action));
-  }
-
-  /**
-   * 
-   */
-  child(problem, action) {
-    const next = problem.result(this.state, action);
-    return new Node(next, this, action, 0);
-  }
-
-  /**
-   * returns the sequence of actions to go from the root to this node.
-   */
-  solution() {
-  }
-
-  /**
-   * Returns the list of nodes forming the path from the root node to this node.
-   */
-  path() {
-
-  }
-}
-
 
 class Grid {
   static getTile(grid, pos, direction = [0, 0]) {
@@ -247,12 +156,15 @@ class Grid {
     for (let i = 0; i < gridSize[0]; i++) {
       for (let j = 0; j < gridSize[1]; j++) {
         if  (!explored.has(positionKey([i, j]))) {
-          const problem = new Problem({
+          const problem = new GridProblem({
             position: [i, j],
             grid,
             previous: []
           });
-          const nodeSet = breadthFirstFlood(problem);
+          const nodeSet = breadthFirstFlood(problem, {
+            frontier: new TileQueue(),
+            explored: new StateSet()
+          });
           const nodes = nodeSet.toArray();
           if (nodes.length === 1) {
             const node = nodes[0];
@@ -345,7 +257,6 @@ function hatch(shape, opts = {}) {
   for (let i = 0; i < steps; i++) {
     trace.translate(disectionVec.normalize().multiply(-stepSize));
     let intersections = shape.getIntersections(trace);
-    console.log(intersections.length);
     if (intersections.length === 3) {
       // Both ends of the hatching line should always begin outside the shape, so assume
       // the mid-point come from clipping a corner.
@@ -387,6 +298,17 @@ function hatch(shape, opts = {}) {
 const B_TILE_OPTS = { pen: pens.BLACK, stepSize: 1, pen: pens.BLACK };
 const H_TILE_OPTS = { stepSize: 5, wobble: 0, angle: 0, pen: pens.BLACK };
 const D_TILE_OPTS = { stepSize: 10, wobble: 0, angle: -45, pen: pens.BLACK };
+
+class Tile {
+  constructor(t0, t1) {
+    this[0] = t1;
+    this[1] = t2;
+  }
+
+  draw() {
+
+  }
+}
 
 /* Primary Tiles */
 
@@ -685,57 +607,6 @@ function hatchingTest() {
 }
 // hatchingTest();
 
-function breadthFirstSearch(problem) {
-  const node = new Node(problem.init);
-  if (problem.isGoal(problem.init)) {
-    return node;
-  }
-  const frontier = new Queue([node]);
-  const explored = new StateSet();
-  let count = 0;
-  while (frontier.length && count < 1000) {
-    count++;
-    const node = frontier.pop();
-    explored.add(node.state);
-    for (let child of node.expand(problem)) {
-      if (
-        !explored.contains(child.state) && 
-        !frontier.contains(el => stateKey(el.state) === stateKey(child.state))
-      ) {
-        if (problem.isGoal(child.state)) {
-          return child;
-        }
-        frontier.push(child);
-      }
-    }
-  }
-}
-
-function breadthFirstFlood(problem) {
-  const node = new Node(problem.init);
-  const frontier = new Queue([node]);
-  const explored = new StateSet();
-  let count = 0;
-  const maxCount = 10000;
-  while (frontier.length && count < maxCount) {
-    count++;
-    const node = frontier.pop();
-    explored.add(node.state);
-    for (let child of node.expand(problem)) {
-      if (
-        !explored.contains(child.state) &&
-        !frontier.contains(el => stateKey(el.state) === stateKey(child.state))
-      ) {
-        frontier.push(child);
-      }
-    }
-  }
-  if (count >= maxCount) {
-    console.log('Max count reached: ', count);
-  }
-  return explored;
-}
-
 function pathfinding() {
   const topLeft = new Point(100, 100);
   const size = [50, 50];
@@ -762,3 +633,15 @@ function pathfinding() {
   Grid.drawShapes(grid, [6, 6], size[0]);
 }
 // pathfinding();
+
+class TriGrid {
+  constructor() {
+
+  }
+}
+
+function tri_cubo() {
+  const grid = [
+    [new Tile()]
+  ];
+}

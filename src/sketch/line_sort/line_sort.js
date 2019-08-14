@@ -42,6 +42,20 @@ export function swapOut(arr, pos, item) {
   return prev;
 }
 
+function bitonicCompare(key, a, b, dir) {
+  const UP = 1;
+  const DOWN = 0;
+  if (a[key] === b[key]) {
+    return 0;
+  } else if (dir === UP && a[key] > b[key]) {
+    return 1;
+  } else if (dir === DOWN && a[key] < b[key]) {
+    return 1;
+  } else {
+    return -1;
+  }
+}
+
 function compareNumber(a, b) {
   if (a < b) {
     return -1;
@@ -144,7 +158,7 @@ function sortLinesByColor(nLines, sortFn, palette, smoothing) {
   if (sortFn === sort.radix) {
     const max = Math.max(...arr.map(a => a['val']));
     sorted = [...sortFn(max, exchangeFn, a => a['val'], arr)];
-  } if (sortFn === sort.bogo) {
+  } else if (sortFn === sort.bogo) {
     sorted = [];
     const gen = sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), arr);
     for (let i = 0; i < 100; i++) {
@@ -317,6 +331,39 @@ function selectionSort(items, opts, paperType = STRATH_SMALL) {
   draw(original, sorted, width, height, opts);
 }
 
+function radixSort(items, opts, paperType = STRATH_SMALL) {
+  const PAPER_SIZE = paperType.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.radix;
+  const exchangeFn = copyFromList;
+
+  const max = Math.max(...items.map(a => a['val']));
+  const sorted = [...sortFn(max, exchangeFn, a => a['val'], items)];
+
+  draw(original, sorted, width, height, opts);
+}
+
+function bitonicSort(items, opts, paperType = STRATH_SMALL) {
+  const PAPER_SIZE = paperType.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.bitonic;
+  const exchangeFn = exchangeIndices;
+
+  const sorted = [...sortFn(exchangeFn, bitonicCompare.bind(null, 'val'), items)];
+
+  draw(original, sorted, width, height, opts);
+}
+
 function uniformRandomItems(nLines, palette) {
   const arr = [];
   for (let i = 0; i < nLines; i++) {
@@ -364,48 +411,6 @@ function repeatItems(times, palette) {
   return arr;
 }
 
-// function draw(original, sorted, width, height, opts={}) {
-//   const nLines = original.length;
-//   const margin = 100;
-//   const vStepSize = (height - margin) / nLines;
-//   const hStepSize = (width - margin) / sorted.length;
-//   const segments = [];
-//   for (let i = 0; i < nLines; i++) {
-//     segments.push([]);
-//   }
-//   for (let i = 0; i < sorted.length; i++) {
-//     const step = sorted[i];
-//     const x = i * hStepSize;
-//     for (let j = 0; j < nLines; j++) {
-//       const y = j * vStepSize + vStepSize / 2;
-//       segments[step.list[j].id].push([x, y]);
-//     }
-//   }
-//   const paths = [];
-//   for (let i = 0; i < segments.length; i++) {
-//     const segment = segments[i];
-//     // add starting point and end point
-//     const start = new Point(segment[0]).subtract(margin / 4, 0);
-//     const end = new Point(segment[segment.length - 1]).add(margin / 4, 0);
-//     const s = [start, ...segment, end];
-//     const pen = original[i].pen
-//     pens.withPen(pen, ({ color }) => {
-//       const path = new Path({
-//         segments: s,
-//         strokeColor: color
-//       });
-//       path.translate(margin / 2);
-//       if (opts.smoothing) {
-//         path.smooth(opts.smoothing);
-//       }
-//       if (opts.simplify) {
-//         path.simplify(opts.simplify);
-//       }
-//       paths.push(path);
-//     });
-//   }
-// }
-
 function draw(original, sorted, width, height, opts = {}) {
   const nLines = original.length;
   const margin = 100;
@@ -438,9 +443,11 @@ function draw(original, sorted, width, height, opts = {}) {
     const pen = opts.reversePen ? sorted[sorted.length - 1].list[i].pen : original[i].pen;
     // const pen = sorted[sorted.length-1].list[i].pen;
     pens.withPen(pen, ({ color }) => {
+      const strokeColor = new paper.Color(color);
+      strokeColor.alpha = 1;
       const path = new Path({
         segments: s,
-        strokeColor: color
+        strokeColor
       });
       path.translate(margin / 2);
       if (opts.smoothing) {
@@ -473,15 +480,15 @@ function splitReverse(arr, depth=0) {
 }
 
 // quickSort(uniformRandomItems(200, palettes.palette_large));
-let items = reverseItems(25, palettes.palette_rgb3);
-items = splitReverse(items, 3);
-quickSort(items, {
-  reversePen: true,
-  smoothing: {
-    type: 'catmull-rom',
-    factor: 0.7
-  }
-});
+// let items = reverseItems(25, palettes.palette_rgb3);
+// items = splitReverse(items, 3);
+// quickSort(items, {
+//   reversePen: true,
+//   smoothing: {
+//     type: 'catmull-rom',
+//     factor: 0.7
+//   }
+// });
 // quickSort(repeatItems(12, palettes.palette_large));
 
 // mergeSort(uniformRandomItems(200, palettes.palette_large));
@@ -539,7 +546,7 @@ quickSort(items, {
 //   }
 // });
 
-// sortLinesByColor(100, sort.comb, palettes.palette_large);
+// sortLinesByColor(100, sort.radix, palettes.palette_large);
 // sortLinesByColor(200, sort.merge, palette_large);
 // sortLinesByColor(100, sort.cycle, palettes.palette_large);
 // sortLinesByColor(100, sort.selection, palettes.palette_garden, {
@@ -548,6 +555,16 @@ quickSort(items, {
 //     factor:0.9
 //   }
 // });
+
+// radixSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
+// radixSort(reverseItems(5, palettes.palette_large), {}, A4);
+radixSort(reverseItems(15, palettes.palette_hot_and_cold), {}, A4);
+// radixSort(reverseItems(14, palettes.palette_large), {}, A4);
+
+// bitonicSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
+// bitonicSort(reverseItems(25, palettes.palette_large), {}, A4);
+// bitonicSort(repeatItems(25, palettes.palette_rgb3), {}, A4);
+// bitonicSort(reverseItems(14, palettes.palette_large), {}, A4);
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);

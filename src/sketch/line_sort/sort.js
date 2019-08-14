@@ -403,3 +403,49 @@ export function* heap(exchange, compare, list) {
 
   // yield { sorted: true };
 }
+
+export function* bitonic(exchange, compare, list) {
+  const UP = 1;
+  const DOWN = 0;
+  for (let v of bitonicSort(list, 0, list.length, UP)) {
+    yield v;
+  }
+
+  function compareAndSwap(list, i, j, dir) {
+    if (compare(list[i], list[j], dir) > 0) {
+      exchange(list, i, j);
+    }
+  }
+
+  function* bitonicSort(list, low, count, dir) {
+    if (count > 1) {
+      const k = Math.floor(count / 2);
+      for (let v of bitonicSort(list, low, k, UP)) {
+        yield v;
+      }
+      for (let v of bitonicSort(list, low + k, k, DOWN)) {
+        yield v;
+      }
+      for (let v of bitonicMerge(list, low, count, dir)) {
+        yield v;
+      }
+    }
+
+  }
+
+  function* bitonicMerge(list, low, count, dir) {
+    if (count > 1) {
+      const k = Math.floor(count / 2);
+      for (let i = low; i < low + k; i++) {
+        compareAndSwap(list, i, i + k, dir);
+        yield { list: list.map(a => a) };
+      }
+      for (let v of bitonicMerge(list, low, k, dir)) {
+        yield v;
+      }
+      for (let v of bitonicMerge(list, low + k, k, dir)) {
+        yield v;
+      }
+    }
+  }
+}
