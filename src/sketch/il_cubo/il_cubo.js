@@ -1,6 +1,7 @@
 import paper, { Point, Path } from 'paper';
 import math, { random, randomInt } from 'mathjs';
-import { range, sortBy, isFunction, flatten } from 'lodash';
+import { range, sortBy, last, flatten } from 'lodash';
+import dat from 'dat.gui';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
   saveAsSVG, choose, maprange, radiansToDegrees, clipBounds, processOptions
@@ -11,19 +12,41 @@ import * as pens from 'common/pens';
 
 window.paper = paper;
 
-const PAPER_SIZE = STRATH_SMALL.landscape;
-const [width, height] = PAPER_SIZE;
-const canvas = createCanvas(PAPER_SIZE);
-paper.setup(canvas);
-
 const seed = randomInt(2000);
 // const seed = 17; // needs fix to hatch function
-console.log(seed);
+// const seed = 208;
+// console.log(seed);
 // noise.seed(seed);
 math.config({ randomSeed: seed });
 
+const TILES = {
+  B: 'black',
+  W: 'white',
+  H: 'horizontal',
+  D: 'diagonal',
+}
 
-const stateKey = (state) => `${state.position[0]}-${state.position[1]}`;
+const CARDINAL_DIRECTIONS = {
+  N: [0, -1],
+  E: [1, 0],
+  S: [0, 1],
+  W: [-1, 0]
+};
+
+const INTER_CARDINAL_DIRECTIONS = {
+  NE: [1, -1],
+  SE: [1, 1],
+  SW: [-1, 1],
+  NW: [-1, -1]
+}
+
+const DIRECTIONS = {
+  ...CARDINAL_DIRECTIONS,
+  ...INTER_CARDINAL_DIRECTIONS
+};
+
+
+const stateKey = (state) => `${state.position[0]}-${state.position[1]}-${state.position[2]}`;
 
 class StateSet extends OrderedSet {
   key(state) {
@@ -84,6 +107,11 @@ class GridProblem extends Problem {
 }
 
 class Grid {
+
+  static drawOutline() {
+
+  }
+
   static getTile(grid, pos, direction = [0, 0]) {
     const x = pos[0] + direction[0];
     const y = pos[1] + direction[1];
@@ -299,17 +327,6 @@ const B_TILE_OPTS = { pen: pens.BLACK, stepSize: 1, pen: pens.BLACK };
 const H_TILE_OPTS = { stepSize: 5, wobble: 0, angle: 0, pen: pens.BLACK };
 const D_TILE_OPTS = { stepSize: 10, wobble: 0, angle: -45, pen: pens.BLACK };
 
-class Tile {
-  constructor(t0, t1) {
-    this[0] = t1;
-    this[1] = t2;
-  }
-
-  draw() {
-
-  }
-}
-
 /* Primary Tiles */
 
 function wTile(point, size, { tileOpts = {} } = {}) {
@@ -397,9 +414,6 @@ function bhTile(point, size, { hatchOpts = {}, tileOpts = {} } = {}) {
  * @param {[number, number]} size 
  */
 function triBox(point, size, opts={}) {
-  // const {
-  //   pen = pens.BLACK
-  // } = opts;
   const p1 = point.add(0, size[1]);
   const p2 = point.add(size[0], 0);
   return pens.withPen(opts.pen, ({ color }) => {
@@ -423,6 +437,11 @@ function triBox(point, size, opts={}) {
 }
 
 function displayAllTiles() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const size = [50, 50];
   const margin = 50;
   const tiles = [wTile, bTile, hTile, dTile, dhTile, hbTile, bdTile, bhTile];
@@ -434,6 +453,11 @@ function displayAllTiles() {
 // displayAllTiles();
 
 function cubeExample() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const topLeft = new Point(100, 100);
   const size = [50, 50];
   const tiles = [
@@ -456,6 +480,11 @@ function cubeExample() {
 // cubeExample();
 
 function randomTiles() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const topLeft = new Point(0, 0);
   const nXTiles = 20;
   const nYTiles = 20;
@@ -473,26 +502,12 @@ function randomTiles() {
 }
 // randomTiles();
 
-const CARDINAL_DIRECTIONS = {
-  N: [0, -1],
-  E: [1, 0],
-  S: [0, 1],
-  W: [-1, 0]
-};
-
-const INTER_CARDINAL_DIRECTIONS = {
-  NE: [1, -1],
-  SE: [1, 1],
-  SW: [-1, 1],
-  NW: [-1, -1]
-}
-
-const DIRECTIONS = {
-  ...CARDINAL_DIRECTIONS,
-  ...INTER_CARDINAL_DIRECTIONS
-};
-
 function randomWalk() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const topLeft = new Point(0, 0);
   const nXTiles = 10;
   const nYTiles = 10;
@@ -528,60 +543,14 @@ function randomWalk() {
 
   Grid.drawShapes(grid, [nXTiles, nYTiles], size[0]);
 }
-randomWalk();
-
-function interactiveGrid() {
-  const topLeft = new Point(0, 0);
-  const nXTiles = 10;
-  const nYTiles = 10;
-  const size = [height / nYTiles, height / nYTiles];
-  const tiles = [wTile, bTile, hTile, dTile, dhTile, hbTile, bdTile, bhTile];
-  // Create and fill grid.
-  const grid = [];
-  for (let i = 0; i < nXTiles; i++) {
-    grid.push([]);
-  }
-
-  const nRaisedTiles = 10;
-  let pos = [randomInt(nXTiles), randomInt(nYTiles)];
-  grid[pos[0]][pos[1]] = wTile;
-
-  // Now for each tile in the grid, determine its type based on surrounding raised tiles.
-  // Might be easiest to work through tiles from bottom left.
-  Grid.fill(grid, [nXTiles, nYTiles]);
-
-  let paths = Grid.draw(grid, [nXTiles, nYTiles], size[0]);
-
-  paper.view.onClick = (event) => {
-    // clear grid of all non-raised tiles
-    for (let i = 0; i < nXTiles; i++) {
-      for (let j = 0; j < nYTiles; j++) {
-        const tile = grid[i][j];
-        if (tile !== wTile) {
-          grid[i][j] = undefined;
-        }
-      }
-    }
-
-    flatten(paths).forEach(path => path.remove());
-    const tileOffset = event.point.subtract(topLeft).divide(size);
-    const tilePos = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
-    const tile = Grid.getTile(grid, tilePos);
-    console.log(tilePos, tile);
-    if (tile === wTile) {
-      grid[tilePos[0]][tilePos[1]] = undefined;
-    } else {
-      grid[tilePos[0]][tilePos[1]] = wTile;
-    }
-
-    Grid.fill(grid, [nXTiles, nYTiles]);
-
-    paths = Grid.draw(grid, [nXTiles, nYTiles], size[0]);
-  }
-}
-// interactiveGrid();
+// randomWalk();
 
 function hatchingTest() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const size = 50;
   const rects = [];
   const positions = [
@@ -608,6 +577,11 @@ function hatchingTest() {
 // hatchingTest();
 
 function pathfinding() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
   const topLeft = new Point(100, 100);
   const size = [50, 50];
   const grid = [
@@ -622,26 +596,345 @@ function pathfinding() {
 
   Grid.fill(grid, [6, 6]);
 
-  // const problem = new Problem({
-  //   position: [0, 0],
-  //   grid,
-  //   previous: []
-  // });
-  // const nodes = breadthFirstFlood(problem).toArray();
-  // console.log(nodes);
-
   Grid.drawShapes(grid, [6, 6], size[0]);
 }
 // pathfinding();
 
 class TriGrid {
-  constructor() {
 
+  /**
+   * Positions is an array of x,y coords for the white tiles. Converts to the trigrid format.
+   * @param {[number, number]} size 
+   * @param {[number, number][]} positions 
+   */
+  static createGrid(size = [10, 10], positions = []) {
+    const grid = [];
+    for (let i = 0; i < size[0]; i++) {
+      const row = [];
+      for (let j = 0; j < size[1]; j++) {
+        if (positions.findIndex(([x, y]) => x === i && y === j) > -1) {
+          row.push([TILES.W, TILES.W]);
+        } else {
+          row.push([TILES.D, TILES.D]);
+        }
+      }
+      grid.push(row);
+    }
+
+    TriGrid.fill(grid, size);
+
+    return grid;
+  }
+
+  static fill(grid, size) {
+    for (let i = 0; i < size[0]; i++) {
+      for (let j = size[1] - 1; j >= 0; j--) {
+        const [NW, SE] = grid[i][j]; // North-west and south-east sections of the tile.
+        if (NW !== TILES.W) {
+          // Get the surrounding tiles.
+          const south = TriGrid.getTile(grid, [i, j + 1, 0]);
+          const west = TriGrid.getTile(grid, [i - 1, j, 1]);
+          if (south === TILES.W) {
+            if (west === TILES.W) {
+              grid[i][j] = [TILES.B, TILES.H];
+            } else if (west === TILES.H) {
+              grid[i][j] = [TILES.H, TILES.H];
+            } else {
+              grid[i][j] = [TILES.D, TILES.H];
+            }
+          } else if (west === TILES.W) {
+            if (south === TILES.W) {
+              grid[i][j] = [TILES.B, TILES.H];
+            } else if (south === TILES.B) {
+              grid[i][j] = [TILES.B, TILES.B];
+            } else {
+              grid[i][j] = [TILES.B, TILES.D];
+            }
+          } else if (west === TILES.H) {
+            if (south === TILES.B) {
+              grid[i][j] = [TILES.H, TILES.B];
+            }
+          } else {
+            grid[i][j] = [TILES.D, TILES.D];
+          }
+        }
+      }
+    }
+  }
+
+  static drawOutline(grid, gridSize, tileSize, position = new Point(0, 0)) {
+    const paths = [];
+    for (let i = 0; i < gridSize[0]; i++) {
+      const x = i * tileSize;
+      for (let j = 0; j < gridSize[1]; j++) {
+        const y = j * tileSize;
+        const tile = TriGrid.getTile(grid, [i, j]);
+        const fillColor = tile[0] === TILES.W ? 'silver' : 'white';
+        const path = new Path.Rectangle({
+          point: position.add(x, y),
+          size: [tileSize, tileSize],
+          strokeColor: 'black',
+          fillColor
+        });
+        paths.push(path);
+      }
+    }
+
+    return paths;
+  }
+
+  static getTile(grid, pos, direction = [0, 0, 0]) {
+    let dim = grid;
+    for (let idx of pos) {
+      const tmp = dim[idx] || null;
+      if (!tmp) {
+        return tmp;
+      } else {
+        dim = tmp;
+      }
+    }
+    return dim;
+  }
+
+  static drawShapes(grid, gridSize, tileSize, position = new Point(0, 0)) {
+    const paths = [];
+    const explored = new Set();
+    const shapes = [];
+
+    const positionKey = ([x, y, z]) => `${x}-${y}-${z}`;
+
+    for (let i = 0; i < gridSize[0]; i++) {
+      for (let j = 0; j < gridSize[1]; j++) {
+        for (let k = 0; k < 2; k++) {
+          if (!explored.has(positionKey([i, j, k]))) {
+            const problem = new TriGridProblem({
+              position: [i, j, k],
+              grid,
+              previous: []
+            });
+            const nodeSet = breadthFirstFlood(problem, {
+              frontier: new TileQueue(),
+              explored: new StateSet()
+            });
+            const nodes = nodeSet.toArray();
+
+            const tris = nodes.map(node => {
+              explored.add(positionKey(node.position));
+              const point = position.add(node.position[0] * tileSize, node.position[1] * tileSize);
+              if (node.position[2] === 0) {
+                return rightTriangle(point, [tileSize, tileSize]);
+              } else {
+                return rightTriangle(point.add(tileSize), [-tileSize, -tileSize]);
+              }
+            });
+
+            const tile = grid[i][j][k];
+
+            const shape = tris.reduce((acc, tri) => {
+              return acc ? acc.unite(tri) : tri;
+            });
+            paths.push(shape);
+
+            if (tile === TILES.W) {
+              shape.visible = true;
+              shape.strokeColor = 'black';
+            } else if (tile === TILES.D) {
+              paths.push(hatch(shape, D_TILE_OPTS));
+              tris.map(tri => tri.remove());
+            } else if (tile === TILES.B) {
+              paths.push(hatch(shape, B_TILE_OPTS));
+              tris.map(tri => tri.remove());
+            } else if (tile === TILES.H) {
+              paths.push(hatch(shape, H_TILE_OPTS));
+              tris.map(tri => tri.remove());
+            }
+          }
+        }
+      }
+    }
+    return paths;
   }
 }
 
+class TriGridProblem extends Problem {
+  /**
+ * Return the list of actions that can be executed from the given state.
+ * @param {any} state 
+ */
+  actions(state) {
+    const [x, y, z] = state.position;
+    const z0steps = [[-1, 0, 1], [0, -1, 1], [0, 0, 1]];
+    const z1steps = [[0, 0, -1], [1, 0, -1], [0, 1, -1]];
+    const actions = [];
+    const currentTile = TriGrid.getTile(state.grid, [x, y, z]);
+    if (z === 0) {
+      for (let step of z0steps) {
+        const [nx, ny, nz] = [x + step[0], y + step[1], z + step[2]];
+        const tile = TriGrid.getTile(state.grid, [nx, ny, nz]);
+        if (
+          currentTile === tile &&
+          state.previous.findIndex(prev => prev[0] === nx && prev[1] === ny && prev[2] === nz) === -1
+        ) {
+          actions.push(step);
+        }
+      }
+    }
+
+    if (z === 1) {
+      for (let step of z1steps) {
+        const [nx, ny, nz] = [x + step[0], y + step[1], z + step[2]];
+        const tile = TriGrid.getTile(state.grid, [nx, ny, nz]);
+        if (
+          currentTile === tile &&
+          state.previous.findIndex(prev => prev[0] === nx && prev[1] === ny && prev[2] === nz) === -1
+        ) {
+          actions.push(step);
+        }
+      }
+    }
+
+    return actions;
+  }
+
+  /**
+   * Return the state that results from executing the given action
+   * @param {any} state 
+   * @param {Action} action 
+   */
+  result({ position, grid, previous }, action) {
+    const next = [position[0] + action[0], position[1] + action[1], position[2] + action[2]];
+    return {
+      position: next,
+      grid,
+      previous: [position, ...previous]
+    };
+  }
+
+  /**
+   * Returns true if the goal has been reached.
+   * @param {any} state 
+   */
+  isGoal(state) {
+    return this.actions(state).length === 0;
+  }
+}
+
+function rightTriangle(point, size, opts = {}) {
+  const p1 = point.add(0, size[1]);
+  const p2 = point.add(size[0], 0);
+  return pens.withPen(opts.pen, ({ color }) => {
+    return new Path({
+      segments: [point, p1, p2],
+      closed: true,
+      visible: false,
+      strokeColor: color,
+      ...opts
+    });
+  });
+}
+
 function tri_cubo() {
-  const grid = [
-    [new Tile()]
+
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  function randomShape(nBlocks, gridSize) {
+    const positions = [[randomInt(gridSize[0]), randomInt(gridSize[1])]];
+    const directions = Object.keys(CARDINAL_DIRECTIONS);
+    for (let i = 1; i < nBlocks; i++) {
+      const prev = positions[i - 1];
+      const dir = CARDINAL_DIRECTIONS[choose(directions)];
+      positions.push([prev[0] + dir[0], prev[1] + dir[1]]);
+    }
+    return positions;
+  }
+
+  const vmargin = 25;
+  const gridSize = [24, 24];
+  const tileSize = (height - vmargin * 2) / gridSize[1];
+  const hmargin = (width - tileSize * gridSize[0]) / 2
+  
+  const positions = [
+    ...randomShape(15, gridSize), 
+    ...randomShape(15, gridSize),
+    ...randomShape(15, gridSize),
+    ...randomShape(15, gridSize)
   ];
+
+  const grid = TriGrid.createGrid(gridSize, positions);
+
+  TriGrid.drawShapes(grid, gridSize, tileSize, new Point(hmargin, vmargin));
+}
+// tri_cubo();
+
+function interactiveGrid() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const gui = new dat.GUI();
+
+  const topLeft = new Point(0, 0);
+  const nXTiles = 8;
+  const nYTiles = 8;
+  const size = [height / nYTiles, height / nYTiles];
+  const isWhiteBox = (box) => box[0] === TILES.W && box[1] === TILES.W;
+  // Create and fill grid.
+  const grid = TriGrid.createGrid([nXTiles, nYTiles]);
+  let paths = [];
+
+  const guifns = {
+    run: () => {
+      flatten(paths).forEach(path => path.remove());
+      TriGrid.fill(grid, [nXTiles, nYTiles]);
+      paths = TriGrid.drawShapes(grid, [nXTiles, nYTiles], size[0]);
+    },
+    reset: () => {
+      flatten(paths).forEach(path => path.remove());
+      for (let i = 0; i < nXTiles; i++) {
+        for (let j = 0; j < nXTiles; j++) {
+          grid[i][j] = [];
+        }
+      }
+      paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
+    }
+  }
+  gui.add(guifns, 'run');
+  gui.add(guifns, 'reset');
+
+  paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
+
+  paper.view.onClick = (event) => {
+    // clear grid of all non-raised tiles
+    for (let i = 0; i < nXTiles; i++) {
+      for (let j = 0; j < nYTiles; j++) {
+        const box = grid[i][j];
+        if (!isWhiteBox(box)) {
+          grid[i][j] = [];
+        }
+      }
+    }
+
+    flatten(paths).forEach(path => path.remove());
+    const tileOffset = event.point.subtract(topLeft).divide(size);
+    const tilePos = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
+    const box = TriGrid.getTile(grid, tilePos);
+    if (isWhiteBox(box)) {
+      grid[tilePos[0]][tilePos[1]] = [TILES.D, TILES.D];
+    } else {
+      grid[tilePos[0]][tilePos[1]] = [TILES.W, TILES.W];
+    }
+
+    TriGrid.fill(grid, [nXTiles, nYTiles]);
+
+    paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0]);
+  }
+}
+interactiveGrid();
+
+window.saveAsSvg = function save(name) {
+  saveAsSVG(paper.project, name);
 }
