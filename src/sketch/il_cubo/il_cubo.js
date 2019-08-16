@@ -600,6 +600,15 @@ function pathfinding() {
 }
 // pathfinding();
 
+class Tile {
+  constructor(type, opts = {}) {
+    this.type = type;
+    this[0] = type[0]
+    this[1] = type[1];
+    this.opts = opts;
+  }
+}
+
 class TriGrid {
 
   /**
@@ -613,9 +622,9 @@ class TriGrid {
       const row = [];
       for (let j = 0; j < size[1]; j++) {
         if (positions.findIndex(([x, y]) => x === i && y === j) > -1) {
-          row.push([TILES.W, TILES.W]);
+          row.push(new Tile([TILES.W, TILES.W]));
         } else {
-          row.push([TILES.D, TILES.D]);
+          row.push(new Tile([TILES.D, TILES.D]));
         }
       }
       grid.push(row);
@@ -629,33 +638,33 @@ class TriGrid {
   static fill(grid, size) {
     for (let i = 0; i < size[0]; i++) {
       for (let j = size[1] - 1; j >= 0; j--) {
-        const [NW, SE] = grid[i][j]; // North-west and south-east sections of the tile.
+        const [NW, SE] = grid[i][j].type; // North-west and south-east sections of the tile.
         if (NW !== TILES.W) {
           // Get the surrounding tiles.
           const south = TriGrid.getTile(grid, [i, j + 1, 0]);
           const west = TriGrid.getTile(grid, [i - 1, j, 1]);
           if (south === TILES.W) {
             if (west === TILES.W) {
-              grid[i][j] = [TILES.B, TILES.H];
+              grid[i][j] = new Tile([TILES.B, TILES.H]);
             } else if (west === TILES.H) {
-              grid[i][j] = [TILES.H, TILES.H];
+              grid[i][j] = new Tile([TILES.H, TILES.H]);
             } else {
-              grid[i][j] = [TILES.D, TILES.H];
+              grid[i][j] = new Tile([TILES.D, TILES.H]);
             }
           } else if (west === TILES.W) {
             if (south === TILES.W) {
-              grid[i][j] = [TILES.B, TILES.H];
+              grid[i][j] = new Tile([TILES.B, TILES.H]);
             } else if (south === TILES.B) {
-              grid[i][j] = [TILES.B, TILES.B];
+              grid[i][j] = new Tile([TILES.B, TILES.B]);
             } else {
-              grid[i][j] = [TILES.B, TILES.D];
+              grid[i][j] = new Tile([TILES.B, TILES.D]);
             }
           } else if (west === TILES.H) {
             if (south === TILES.B) {
-              grid[i][j] = [TILES.H, TILES.B];
+              grid[i][j] = new Tile([TILES.H, TILES.B]);
             }
           } else {
-            grid[i][j] = [TILES.D, TILES.D];
+            grid[i][j] = new Tile([TILES.D, TILES.D]);
           }
         }
       }
@@ -669,7 +678,7 @@ class TriGrid {
       for (let j = 0; j < gridSize[1]; j++) {
         const y = j * tileSize;
         const tile = TriGrid.getTile(grid, [i, j]);
-        const fillColor = tile[0] === TILES.W ? 'silver' : 'white';
+        const fillColor = tile.type[0] === TILES.W ? 'silver' : 'white';
         const path = new Path.Rectangle({
           point: position.add(x, y),
           size: [tileSize, tileSize],
@@ -728,7 +737,7 @@ class TriGrid {
               }
             });
 
-            const tile = grid[i][j][k];
+            const tile = grid[i][j].type[k];
 
             const shape = tris.reduce((acc, tri) => {
               return acc ? acc.unite(tri) : tri;
@@ -881,7 +890,7 @@ function interactiveGrid() {
   const nXTiles = 8;
   const nYTiles = 8;
   const size = [height / nYTiles, height / nYTiles];
-  const isWhiteBox = (box) => box[0] === TILES.W && box[1] === TILES.W;
+  const isWhiteBox = (box) => box.type[0] === TILES.W && box.type[1] === TILES.W;
   // Create and fill grid.
   const grid = TriGrid.createGrid([nXTiles, nYTiles]);
   let paths = [];
@@ -896,7 +905,7 @@ function interactiveGrid() {
       flatten(paths).forEach(path => path.remove());
       for (let i = 0; i < nXTiles; i++) {
         for (let j = 0; j < nXTiles; j++) {
-          grid[i][j] = [];
+          grid[i][j] = new Tile([]);
         }
       }
       paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
@@ -913,7 +922,7 @@ function interactiveGrid() {
       for (let j = 0; j < nYTiles; j++) {
         const box = grid[i][j];
         if (!isWhiteBox(box)) {
-          grid[i][j] = [];
+          grid[i][j] = new Tile([]);
         }
       }
     }
@@ -923,9 +932,9 @@ function interactiveGrid() {
     const tilePos = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
     const box = TriGrid.getTile(grid, tilePos);
     if (isWhiteBox(box)) {
-      grid[tilePos[0]][tilePos[1]] = [TILES.D, TILES.D];
+      grid[tilePos[0]][tilePos[1]] = new Tile([TILES.D, TILES.D]);
     } else {
-      grid[tilePos[0]][tilePos[1]] = [TILES.W, TILES.W];
+      grid[tilePos[0]][tilePos[1]] = new Tile([TILES.W, TILES.W]);
     }
 
     TriGrid.fill(grid, [nXTiles, nYTiles]);
