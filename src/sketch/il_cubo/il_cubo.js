@@ -1,6 +1,6 @@
 import paper, { Point, Path } from 'paper';
 import math, { random, randomInt } from 'mathjs';
-import { range, sortBy, last, flatten } from 'lodash';
+import { range, sortBy, last, flatten, isArray } from 'lodash';
 import dat from 'dat.gui';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
@@ -9,6 +9,7 @@ import {
 import { Queue, OrderedSet } from 'common/datastructures';
 import { Problem, breadthFirstFlood } from 'common/search';
 import * as pens from 'common/pens';
+import * as palettes from 'common/palettes';
 
 window.paper = paper;
 
@@ -605,7 +606,20 @@ class Tile {
     this.type = type;
     this[0] = type[0]
     this[1] = type[1];
-    this.opts = opts;
+    this.opts = isArray(opts) ? opts : [opts, opts];
+  }
+
+  style(idx) {
+    const hatchType = this[idx];
+    if (hatchType === TILES.D) {
+      return { ...D_TILE_OPTS, ...this.opts[idx] };
+    } else if (hatchType === TILES.B) {
+      return { ...B_TILE_OPTS, ...this.opts[idx] };
+    } else if (hatchType === TILES.H) {
+      return { ...H_TILE_OPTS, ...this.opts[idx] };
+    } else {
+      return this.opts[idx];
+    }
   }
 }
 
@@ -636,35 +650,138 @@ class TriGrid {
   }
 
   static fill(grid, size) {
+    // TriGrid.fillRight(grid, size);
+    TriGrid.fillLeft(grid, size);
+  }
+
+  static fillRight(grid, size) {
     for (let i = 0; i < size[0]; i++) {
       for (let j = size[1] - 1; j >= 0; j--) {
         const [NW, SE] = grid[i][j].type; // North-west and south-east sections of the tile.
         if (NW !== TILES.W) {
           // Get the surrounding tiles.
-          const south = TriGrid.getTile(grid, [i, j + 1, 0]);
-          const west = TriGrid.getTile(grid, [i - 1, j, 1]);
-          if (south === TILES.W) {
-            if (west === TILES.W) {
-              grid[i][j] = new Tile([TILES.B, TILES.H]);
-            } else if (west === TILES.H) {
-              grid[i][j] = new Tile([TILES.H, TILES.H]);
+          const south = TriGrid.getTile(grid, [i, j + 1]) || new Tile([]);
+          const west = TriGrid.getTile(grid, [i - 1, j]) || new Tile([]);
+          const opts = [
+            { pen: west ? west.opts[1].pen : pens.BLACK },
+            { pen: south ? south.opts[0].pen : pens.BLACK }
+          ];
+          if (south[0] === TILES.W) {
+            if (west[1] === TILES.W) {
+              grid[i][j] = new Tile(
+                [TILES.B, TILES.H],
+                opts
+              );
+            } else if (west[1] === TILES.H) {
+              grid[i][j] = new Tile(
+                [TILES.H, TILES.H],
+                opts
+              );
             } else {
-              grid[i][j] = new Tile([TILES.D, TILES.H]);
+              grid[i][j] = new Tile(
+                [TILES.D, TILES.H],
+                opts
+              );
             }
-          } else if (west === TILES.W) {
-            if (south === TILES.W) {
-              grid[i][j] = new Tile([TILES.B, TILES.H]);
-            } else if (south === TILES.B) {
-              grid[i][j] = new Tile([TILES.B, TILES.B]);
+          } else if (west[1] === TILES.W) {
+            if (south[0] === TILES.W) {
+              grid[i][j] = new Tile(
+                [TILES.B, TILES.H],
+                opts
+              );
+            } else if (south[0] === TILES.B) {
+              grid[i][j] = new Tile(
+                [TILES.B, TILES.B],
+                opts
+              );
             } else {
-              grid[i][j] = new Tile([TILES.B, TILES.D]);
+              grid[i][j] = new Tile(
+                [TILES.B, TILES.D],
+                opts
+              );
             }
-          } else if (west === TILES.H) {
-            if (south === TILES.B) {
-              grid[i][j] = new Tile([TILES.H, TILES.B]);
+          } else if (west[1] === TILES.H) {
+            if (south[0] === TILES.B) {
+              grid[i][j] = new Tile(
+                [TILES.H, TILES.B],
+                opts
+              );
             }
           } else {
-            grid[i][j] = new Tile([TILES.D, TILES.D]);
+            grid[i][j] = new Tile(
+              [TILES.D, TILES.D],
+              { pen: pens.BLACK }
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // Filling left will reqire a different tile structure. The diagonal line needs to go the other way.
+  static fillLeft(grid, size) {
+    for (let i = size[0]-1; i >= 0; i--) {
+      for (let j = 0; j < size[1]; j++) {
+        const [NW, SE] = grid[i][j].type; // North-west and south-east sections of the tile.
+        if (NW !== TILES.W) {
+          // Get the surrounding tiles.
+          const north = TriGrid.getTile(grid, [i, j - 1]) || new Tile([]);
+          const east = TriGrid.getTile(grid, [i + 1, j]) || new Tile([]);
+          const opts = [
+            { pen: north ? north.opts[1].pen : pens.BLACK },
+            { pen: east ? east.opts[0].pen : pens.BLACK }
+          ];
+          if (north[1] === TILES.W) {
+            if (east[0] === TILES.W) {
+              grid[i][j] = new Tile(
+                // [TILES.B, TILES.H],
+                [TILES.H, TILES.B],
+                opts
+              );
+            } else if (east[0] === TILES.H) {
+              grid[i][j] = new Tile(
+                [TILES.H, TILES.H],
+                opts
+              );
+            } else {
+              grid[i][j] = new Tile(
+                // [TILES.D, TILES.H],
+                [TILES.H, TILES.D],
+                opts
+              );
+            }
+          } else if (east[0] === TILES.W) {
+            if (north[1] === TILES.W) {
+              grid[i][j] = new Tile(
+                // [TILES.B, TILES.H],
+                [TILES.H, TILES.B],
+                opts
+              );
+            } else if (north[1] === TILES.B) {
+              grid[i][j] = new Tile(
+                [TILES.B, TILES.B],
+                opts
+              );
+            } else {
+              grid[i][j] = new Tile(
+                // [TILES.B, TILES.D],
+                [TILES.D, TILES.B],
+                opts
+              );
+            }
+          } else if (east[0] === TILES.H) {
+            if (north[1] === TILES.B) {
+              grid[i][j] = new Tile(
+                // [TILES.H, TILES.B],
+                [TILES.B, TILES.H],
+                opts
+              );
+            }
+          } else {
+            grid[i][j] = new Tile(
+              [TILES.D, TILES.D],
+              { pen: pens.BLACK }
+            );
           }
         }
       }
@@ -678,7 +795,7 @@ class TriGrid {
       for (let j = 0; j < gridSize[1]; j++) {
         const y = j * tileSize;
         const tile = TriGrid.getTile(grid, [i, j]);
-        const fillColor = tile.type[0] === TILES.W ? 'silver' : 'white';
+        const { color: fillColor } = tile.type[0] === TILES.W ? pens.info(tile.style(0).pen) : 'white';
         const path = new Path.Rectangle({
           point: position.add(x, y),
           size: [tileSize, tileSize],
@@ -737,24 +854,20 @@ class TriGrid {
               }
             });
 
-            const tile = grid[i][j].type[k];
+            const tile = grid[i][j];
 
             const shape = tris.reduce((acc, tri) => {
               return acc ? acc.unite(tri) : tri;
             });
             paths.push(shape);
 
-            if (tile === TILES.W) {
+            
+
+            if (tile[k] === TILES.W) {
               shape.visible = true;
               shape.strokeColor = 'black';
-            } else if (tile === TILES.D) {
-              paths.push(hatch(shape, D_TILE_OPTS));
-              tris.map(tri => tri.remove());
-            } else if (tile === TILES.B) {
-              paths.push(hatch(shape, B_TILE_OPTS));
-              tris.map(tri => tri.remove());
-            } else if (tile === TILES.H) {
-              paths.push(hatch(shape, H_TILE_OPTS));
+            } else {
+              paths.push(hatch(shape, tile.style(k)));
               tris.map(tri => tri.remove());
             }
           }
@@ -890,12 +1003,12 @@ function interactiveGrid() {
   const nXTiles = 8;
   const nYTiles = 8;
   const size = [height / nYTiles, height / nYTiles];
-  const isWhiteBox = (box) => box.type[0] === TILES.W && box.type[1] === TILES.W;
+  const isWhiteBox = (box) => box && box.type[0] === TILES.W && box.type[1] === TILES.W;
   // Create and fill grid.
   const grid = TriGrid.createGrid([nXTiles, nYTiles]);
   let paths = [];
 
-  const guifns = {
+  const guicontrol = {
     run: () => {
       flatten(paths).forEach(path => path.remove());
       TriGrid.fill(grid, [nXTiles, nYTiles]);
@@ -909,10 +1022,12 @@ function interactiveGrid() {
         }
       }
       paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
-    }
+    },
+    pen: pens.STABILO_88_56
   }
-  gui.add(guifns, 'run');
-  gui.add(guifns, 'reset');
+  gui.add(guicontrol, 'run');
+  gui.add(guicontrol, 'reset');
+  gui.add(guicontrol, 'pen', palettes.palette_cym);
 
   paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
 
@@ -922,19 +1037,21 @@ function interactiveGrid() {
       for (let j = 0; j < nYTiles; j++) {
         const box = grid[i][j];
         if (!isWhiteBox(box)) {
-          grid[i][j] = new Tile([]);
+          grid[i][j] = new Tile([TILES.D, TILES.D], { pen: pens.BLACK });
         }
       }
     }
 
     flatten(paths).forEach(path => path.remove());
     const tileOffset = event.point.subtract(topLeft).divide(size);
-    const tilePos = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
-    const box = TriGrid.getTile(grid, tilePos);
-    if (isWhiteBox(box)) {
-      grid[tilePos[0]][tilePos[1]] = new Tile([TILES.D, TILES.D]);
-    } else {
-      grid[tilePos[0]][tilePos[1]] = new Tile([TILES.W, TILES.W]);
+    const [tileX, tileY] = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
+    const box = TriGrid.getTile(grid, [tileX, tileY]);
+    if (box) {
+      if (isWhiteBox(box)) {
+        grid[tileX][tileY] = new Tile([TILES.D, TILES.D], { pen: guicontrol.pen });
+      } else {
+        grid[tileX][tileY] = new Tile([TILES.W, TILES.W], { pen: guicontrol.pen });
+      }
     }
 
     TriGrid.fill(grid, [nXTiles, nYTiles]);

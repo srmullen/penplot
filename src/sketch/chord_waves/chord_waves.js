@@ -8,7 +8,6 @@ import {
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { WaveGroup, StackedWaveGroup, OverlappedWaveGroup, InterleavedWaveGroup, BufferGroup } from './WaveGroup';
-import { palette_blues_and_greens } from '../../common/palettes';
 
 window.math = math;
 window.range = range;

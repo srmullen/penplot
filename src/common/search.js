@@ -97,9 +97,6 @@ export function breadthFirstFlood(
 ) {
   const node = new Node(problem.init);
   frontier.push(node);
-  // const frontier = new Queue([node]);
-  // const explored = new StateSet();
-  // const explored = new OrderedSet();
   let count = 0;
   const maxCount = 10000;
   while (frontier.length && count < maxCount) {
@@ -109,7 +106,6 @@ export function breadthFirstFlood(
     for (let child of node.expand(problem)) {
       if (
         !explored.contains(child.state) &&
-        // !frontier.contains(el => stateKey(el.state) === stateKey(child.state))
         !frontier.contains(child)
       ) {
         frontier.push(child);
