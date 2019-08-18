@@ -437,22 +437,6 @@ function triBox(point, size, opts={}) {
   });
 }
 
-function displayAllTiles() {
-  const PAPER_SIZE = STRATH_SMALL.landscape;
-  const [width, height] = PAPER_SIZE;
-  const canvas = createCanvas(PAPER_SIZE);
-  paper.setup(canvas);
-
-  const size = [50, 50];
-  const margin = 50;
-  const tiles = [wTile, bTile, hTile, dTile, dhTile, hbTile, bdTile, bhTile];
-  for (let i = 0; i < tiles.length; i++) {
-    const tile = tiles[i];
-    tile(new Point(margin + size[0] * i, height / 2), size);
-  }
-}
-// displayAllTiles();
-
 function cubeExample() {
   const PAPER_SIZE = STRATH_SMALL.landscape;
   const [width, height] = PAPER_SIZE;
@@ -479,29 +463,6 @@ function cubeExample() {
   }
 }
 // cubeExample();
-
-function randomTiles() {
-  const PAPER_SIZE = STRATH_SMALL.landscape;
-  const [width, height] = PAPER_SIZE;
-  const canvas = createCanvas(PAPER_SIZE);
-  paper.setup(canvas);
-
-  const topLeft = new Point(0, 0);
-  const nXTiles = 20;
-  const nYTiles = 20;
-  const size = [height / nYTiles, height / nYTiles];
-  const tiles = [wTile, bTile, hTile, dTile, dhTile, hbTile, bdTile, bhTile];
-  for (let i = 0; i < nXTiles; i++) {
-    const x = i * size[0];
-    for (let j = 0; j < nYTiles; j++) {
-      const y = j * size[0];
-      const tile = tiles[randomInt(tiles.length)];
-      const point = topLeft.add(x, y);
-      tile(point, size);
-    }
-  }
-}
-// randomTiles();
 
 function randomWalk() {
   const PAPER_SIZE = STRATH_SMALL.landscape;
@@ -546,37 +507,6 @@ function randomWalk() {
 }
 // randomWalk();
 
-function hatchingTest() {
-  const PAPER_SIZE = STRATH_SMALL.landscape;
-  const [width, height] = PAPER_SIZE;
-  const canvas = createCanvas(PAPER_SIZE);
-  paper.setup(canvas);
-
-  const size = 50;
-  const rects = [];
-  const positions = [
-    [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 1],
-    [0, 3], [0, 4], [2, 3]
-  ];
-  const topleft = new Point(100, 100);
-  for (let [x, y] of positions) {
-    const point = topleft.add(x * size, y * size);
-    rects.push(new Path.Rectangle({
-      point, 
-      size: [size, size],
-      // strokeColor: 'black'
-    }));
-  }
-  const doughnut = rects.reduce((acc, rect) => {
-    return acc ? acc.unite(rect) : rect;
-  });
-
-  // doughnut.fillColor = 'green';
-  doughnut.strokeColor = 'red';
-  hatch(doughnut, {...D_TILE_OPTS, ...{wobble: 2}});
-}
-// hatchingTest();
-
 function pathfinding() {
   const PAPER_SIZE = STRATH_SMALL.landscape;
   const [width, height] = PAPER_SIZE;
@@ -607,6 +537,8 @@ class Tile {
     this[0] = type[0]
     this[1] = type[1];
     this.opts = isArray(opts) ? opts : [opts, opts];
+    this.fillRight = this.opts[0].fillRight;
+    this.fillLeft = this.opts[0].fillLeft;
   }
 
   style(idx) {
@@ -636,9 +568,9 @@ class TriGrid {
       const row = [];
       for (let j = 0; j < size[1]; j++) {
         if (positions.findIndex(([x, y]) => x === i && y === j) > -1) {
-          row.push(new Tile([TILES.W, TILES.W]));
+          row.push(new Tile([TILES.W, TILES.W], { pen: pens.BLACK }));
         } else {
-          row.push(new Tile([TILES.D, TILES.D]));
+          row.push(new Tile([TILES.D, TILES.D], { pen: pens.BLACK }));
         }
       }
       grid.push(row);
@@ -650,138 +582,128 @@ class TriGrid {
   }
 
   static fill(grid, size) {
-    // TriGrid.fillRight(grid, size);
+    TriGrid.fillRight(grid, size);
     TriGrid.fillLeft(grid, size);
   }
 
   static fillRight(grid, size) {
     for (let i = 0; i < size[0]; i++) {
       for (let j = size[1] - 1; j >= 0; j--) {
-        const [NW, SE] = grid[i][j].type; // North-west and south-east sections of the tile.
+        const tile = grid[i][j];
+        const [NW, SE] = tile.type; // North-west and south-east sections of the tile.
         if (NW !== TILES.W) {
           // Get the surrounding tiles.
           const south = TriGrid.getTile(grid, [i, j + 1]) || new Tile([]);
           const west = TriGrid.getTile(grid, [i - 1, j]) || new Tile([]);
-          const opts = [
-            { pen: west ? west.opts[1].pen : pens.BLACK },
-            { pen: south ? south.opts[0].pen : pens.BLACK }
-          ];
-          if (south[0] === TILES.W) {
-            if (west[1] === TILES.W) {
-              grid[i][j] = new Tile(
-                [TILES.B, TILES.H],
-                opts
-              );
-            } else if (west[1] === TILES.H) {
-              grid[i][j] = new Tile(
-                [TILES.H, TILES.H],
-                opts
-              );
-            } else {
-              grid[i][j] = new Tile(
-                [TILES.D, TILES.H],
-                opts
-              );
-            }
-          } else if (west[1] === TILES.W) {
+          if (south.fillRight || west.fillRight) {
+            const opts = [
+              { pen: west ? west.opts[1].pen : pens.BLACK, fillRight: true },
+              { pen: south ? south.opts[0].pen : pens.BLACK, fillRight: true }
+            ];
             if (south[0] === TILES.W) {
-              grid[i][j] = new Tile(
-                [TILES.B, TILES.H],
-                opts
-              );
-            } else if (south[0] === TILES.B) {
-              grid[i][j] = new Tile(
-                [TILES.B, TILES.B],
-                opts
-              );
-            } else {
-              grid[i][j] = new Tile(
-                [TILES.B, TILES.D],
-                opts
-              );
+              if (west[1] === TILES.W) {
+                grid[i][j] = new Tile(
+                  [TILES.B, TILES.H],
+                  opts
+                );
+              } else if (west[1] === TILES.H) {
+                grid[i][j] = new Tile(
+                  [TILES.H, TILES.H],
+                  opts
+                );
+              } else {
+                grid[i][j] = new Tile(
+                  [TILES.D, TILES.H],
+                  opts
+                );
+              }
+            } else if (west[1] === TILES.W) {
+              if (south[0] === TILES.W) {
+                grid[i][j] = new Tile(
+                  [TILES.B, TILES.H],
+                  opts
+                );
+              } else if (south[0] === TILES.B) {
+                grid[i][j] = new Tile(
+                  [TILES.B, TILES.B],
+                  opts
+                );
+              } else {
+                grid[i][j] = new Tile(
+                  [TILES.B, TILES.D],
+                  opts
+                );
+              }
+            } else if (west[1] === TILES.H) {
+              if (south[0] === TILES.B) {
+                grid[i][j] = new Tile(
+                  [TILES.H, TILES.B],
+                  opts
+                );
+              }
             }
-          } else if (west[1] === TILES.H) {
-            if (south[0] === TILES.B) {
-              grid[i][j] = new Tile(
-                [TILES.H, TILES.B],
-                opts
-              );
-            }
-          } else {
-            grid[i][j] = new Tile(
-              [TILES.D, TILES.D],
-              { pen: pens.BLACK }
-            );
           }
         }
       }
     }
   }
 
-  // Filling left will reqire a different tile structure. The diagonal line needs to go the other way.
   static fillLeft(grid, size) {
     for (let i = size[0]-1; i >= 0; i--) {
       for (let j = 0; j < size[1]; j++) {
-        const [NW, SE] = grid[i][j].type; // North-west and south-east sections of the tile.
+        const tile = grid[i][j];
+        const [NW, SE] = tile.type; // North-west and south-east sections of the tile.
         if (NW !== TILES.W) {
           // Get the surrounding tiles.
           const north = TriGrid.getTile(grid, [i, j - 1]) || new Tile([]);
           const east = TriGrid.getTile(grid, [i + 1, j]) || new Tile([]);
-          const opts = [
-            { pen: north ? north.opts[1].pen : pens.BLACK },
-            { pen: east ? east.opts[0].pen : pens.BLACK }
-          ];
-          if (north[1] === TILES.W) {
-            if (east[0] === TILES.W) {
-              grid[i][j] = new Tile(
-                // [TILES.B, TILES.H],
-                [TILES.H, TILES.B],
-                opts
-              );
-            } else if (east[0] === TILES.H) {
-              grid[i][j] = new Tile(
-                [TILES.H, TILES.H],
-                opts
-              );
-            } else {
-              grid[i][j] = new Tile(
-                // [TILES.D, TILES.H],
-                [TILES.H, TILES.D],
-                opts
-              );
-            }
-          } else if (east[0] === TILES.W) {
+          if (north.fillLeft || east.fillLeft) {
+            const opts = [
+              { pen: north ? north.opts[1].pen : pens.BLACK, fillLeft: true},
+              { pen: east ? east.opts[0].pen : pens.BLACK, fillLeft: true }
+            ];
             if (north[1] === TILES.W) {
-              grid[i][j] = new Tile(
-                // [TILES.B, TILES.H],
-                [TILES.H, TILES.B],
-                opts
-              );
-            } else if (north[1] === TILES.B) {
-              grid[i][j] = new Tile(
-                [TILES.B, TILES.B],
-                opts
-              );
-            } else {
-              grid[i][j] = new Tile(
-                // [TILES.B, TILES.D],
-                [TILES.D, TILES.B],
-                opts
-              );
+              if (east[0] === TILES.W) {
+                grid[i][j] = new Tile(
+                  [TILES.H, TILES.B],
+                  opts
+                );
+              } else if (east[0] === TILES.H) {
+                grid[i][j] = new Tile(
+                  [TILES.H, TILES.H],
+                  opts
+                );
+              } else {
+                grid[i][j] = new Tile(
+                  [TILES.H, TILES.D],
+                  opts
+                );
+              }
+            } else if (east[0] === TILES.W) {
+              if (north[1] === TILES.W) {
+                grid[i][j] = new Tile(
+                  [TILES.H, TILES.B],
+                  opts
+                );
+              } else if (north[1] === TILES.B) {
+                grid[i][j] = new Tile(
+                  [TILES.B, TILES.B],
+                  opts
+                );
+              } else {
+                grid[i][j] = new Tile(
+                  [TILES.D, TILES.B],
+                  opts
+                );
+              }
+            } else if (east[0] === TILES.H) {
+              if (north[1] === TILES.B) {
+                grid[i][j] = new Tile(
+                  [TILES.B, TILES.H],
+                  opts
+                );
+              }
             }
-          } else if (east[0] === TILES.H) {
-            if (north[1] === TILES.B) {
-              grid[i][j] = new Tile(
-                // [TILES.H, TILES.B],
-                [TILES.B, TILES.H],
-                opts
-              );
-            }
-          } else {
-            grid[i][j] = new Tile(
-              [TILES.D, TILES.D],
-              { pen: pens.BLACK }
-            );
           }
         }
       }
@@ -1023,11 +945,13 @@ function interactiveGrid() {
       }
       paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
     },
-    pen: pens.STABILO_88_56
+    pen: pens.STABILO_88_56,
+    fillDirection: 'fillLeft'
   }
   gui.add(guicontrol, 'run');
   gui.add(guicontrol, 'reset');
   gui.add(guicontrol, 'pen', palettes.palette_cym);
+  gui.add(guicontrol, 'fillDirection', ['fillLeft', 'fillRight']);
 
   paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
 
@@ -1050,7 +974,10 @@ function interactiveGrid() {
       if (isWhiteBox(box)) {
         grid[tileX][tileY] = new Tile([TILES.D, TILES.D], { pen: guicontrol.pen });
       } else {
-        grid[tileX][tileY] = new Tile([TILES.W, TILES.W], { pen: guicontrol.pen });
+        grid[tileX][tileY] = new Tile(
+          [TILES.W, TILES.W], 
+          { pen: guicontrol.pen, [guicontrol.fillDirection]: true }
+        );
       }
     }
 
