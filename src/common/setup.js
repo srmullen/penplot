@@ -8,6 +8,11 @@ export const STRATH_SMALL = {
   portrait: [495, 765]
 };
 
+export const ARTIST_SKETCH = {
+  landscape: [765, 459],
+  portrait: [459, 765]
+}
+
 export function createCanvas ([width, height], {hidden = false, id} = {}) {
   const root = document.getElementById('root');
   const canvas = document.createElement('canvas');

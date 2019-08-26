@@ -1,6 +1,6 @@
 import paper, { Point, Path } from 'paper';
 import math, { random, randomInt } from 'mathjs';
-import { range, sortBy, last, flatten, isArray } from 'lodash';
+import { range, sortBy, countBy, last, flatten, isArray } from 'lodash';
 import dat from 'dat.gui';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
 import {
@@ -16,7 +16,8 @@ window.paper = paper;
 const seed = randomInt(2000);
 // const seed = 17; // needs fix to hatch function
 // const seed = 208;
-// console.log(seed);
+// 1684 
+console.log(seed);
 // noise.seed(seed);
 math.config({ randomSeed: seed });
 
@@ -263,7 +264,7 @@ function hatch(shape, opts = {}) {
   }
 
   const traceVec = disectionVec.rotate(90);
-  const width = 1000;
+  const width = 10000;
   const trace = new Path.Line({
     visible: false,
     from: disectionFrom.subtract(traceVec.multiply(width)),
@@ -539,19 +540,15 @@ class Tile {
     this.opts = isArray(opts) ? opts : [opts, opts];
     this.fillRight = this.opts[0].fillRight;
     this.fillLeft = this.opts[0].fillLeft;
+    // if (this.opts[0].hatchOpts) {
+    //   this.hatchOpts = this.opts[0].hatchOpts;
+    // }
   }
 
   style(idx) {
     const hatchType = this[idx];
-    if (hatchType === TILES.D) {
-      return { ...D_TILE_OPTS, ...this.opts[idx] };
-    } else if (hatchType === TILES.B) {
-      return { ...B_TILE_OPTS, ...this.opts[idx] };
-    } else if (hatchType === TILES.H) {
-      return { ...H_TILE_OPTS, ...this.opts[idx] };
-    } else {
-      return this.opts[idx];
-    }
+    const hatchOpts = this.opts[idx].hatchOpts;
+    return hatchOpts[hatchType];
   }
 }
 
@@ -562,15 +559,16 @@ class TriGrid {
    * @param {[number, number]} size 
    * @param {[number, number][]} positions 
    */
-  static createGrid(size = [10, 10], positions = []) {
+  static createGrid(size = [10, 10], positions = [], defaultOpts) {
     const grid = [];
     for (let i = 0; i < size[0]; i++) {
       const row = [];
       for (let j = 0; j < size[1]; j++) {
-        if (positions.findIndex(([x, y]) => x === i && y === j) > -1) {
-          row.push(new Tile([TILES.W, TILES.W], { pen: pens.BLACK }));
+        let idx = positions.findIndex(({ position }) => position[0] === i && position[1] === j);
+        if (idx > -1) {
+          row.push(new Tile([TILES.W, TILES.W], positions[idx].opts));
         } else {
-          row.push(new Tile([TILES.D, TILES.D], { pen: pens.BLACK }));
+          row.push(new Tile([TILES.D, TILES.D], defaultOpts));
         }
       }
       grid.push(row);
@@ -593,12 +591,18 @@ class TriGrid {
         const [NW, SE] = tile.type; // North-west and south-east sections of the tile.
         if (NW !== TILES.W) {
           // Get the surrounding tiles.
-          const south = TriGrid.getTile(grid, [i, j + 1]) || new Tile([]);
-          const west = TriGrid.getTile(grid, [i - 1, j]) || new Tile([]);
+          const south = TriGrid.getTile(grid, [i, j + 1]) || new Tile([], tile.opts);
+          const west = TriGrid.getTile(grid, [i - 1, j]) || new Tile([], tile.opts);
           if (south.fillRight || west.fillRight) {
             const opts = [
-              { pen: west ? west.opts[1].pen : pens.BLACK, fillRight: true },
-              { pen: south ? south.opts[0].pen : pens.BLACK, fillRight: true }
+              { 
+                hatchOpts: west.opts[1].hatchOpts ? west.opts[1].hatchOpts : tile.opts[0].hatchOpts, 
+                fillRight: true 
+              },
+              {
+                hatchOpts: south.opts[0].hatchOpts ? south.opts[0].hatchOpts : tile.opts[1].hatchOpts, 
+                fillRight: true 
+              }
             ];
             if (south[0] === TILES.W) {
               if (west[1] === TILES.W) {
@@ -641,6 +645,11 @@ class TriGrid {
                   opts
                 );
               }
+            } else {
+              grid[i][j] = new Tile(
+                [TILES.D, TILES.D],
+                opts
+              );
             }
           }
         }
@@ -659,8 +668,14 @@ class TriGrid {
           const east = TriGrid.getTile(grid, [i + 1, j]) || new Tile([]);
           if (north.fillLeft || east.fillLeft) {
             const opts = [
-              { pen: north ? north.opts[1].pen : pens.BLACK, fillLeft: true},
-              { pen: east ? east.opts[0].pen : pens.BLACK, fillLeft: true }
+              { 
+                hatchOpts: north.opts[1].hatchOpts ? north.opts[1].hatchOpts : tile.opts[0].hatchOpts, 
+                fillLeft: true 
+              },
+              { 
+                hatchOpts: east.opts[0].hatchOpts ? east.opts[0].hatchOpts : tile.opts[1].hatchOpts, 
+                fillLeft: true 
+              }
             ];
             if (north[1] === TILES.W) {
               if (east[0] === TILES.W) {
@@ -703,6 +718,11 @@ class TriGrid {
                   opts
                 );
               }
+            } else {
+              grid[i][j] = new Tile(
+                [TILES.D, TILES.D],
+                opts
+              );
             }
           }
         }
@@ -747,14 +767,18 @@ class TriGrid {
   static drawShapes(grid, gridSize, tileSize, position = new Point(0, 0)) {
     const paths = [];
     const explored = new Set();
-    const shapes = [];
 
     const positionKey = ([x, y, z]) => `${x}-${y}-${z}`;
+
+    const ignore = (tile) => {
+      return tile === TILES.D;
+    }
 
     for (let i = 0; i < gridSize[0]; i++) {
       for (let j = 0; j < gridSize[1]; j++) {
         for (let k = 0; k < 2; k++) {
-          if (!explored.has(positionKey([i, j, k]))) {
+          const tile = grid[i][j];
+          if (!explored.has(positionKey([i, j, k])) && !ignore(tile[k])) {
             const problem = new TriGridProblem({
               position: [i, j, k],
               grid,
@@ -776,19 +800,20 @@ class TriGrid {
               }
             });
 
-            const tile = grid[i][j];
-
             const shape = tris.reduce((acc, tri) => {
               return acc ? acc.unite(tri) : tri;
             });
             paths.push(shape);
 
-            
-
             if (tile[k] === TILES.W) {
-              shape.visible = true;
-              shape.strokeColor = 'black';
+              // shape.visible = true;
+              // shape.strokeColor = 'black';
+              paths.push(hatch(shape, tile.style(k)));
+              tris.map(tri => tri.remove());
             } else {
+              if (!tile.opts[k].hatchOpts) {
+                console.log(i, j, k);
+              }
               paths.push(hatch(shape, tile.style(k)));
               tris.map(tri => tri.remove());
             }
@@ -884,30 +909,81 @@ function tri_cubo() {
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
 
-  function randomShape(nBlocks, gridSize) {
-    const positions = [[randomInt(gridSize[0]), randomInt(gridSize[1])]];
+  const colors = {
+    red: [pens.STABILO_88_19, pens.STABILO_88_54, pens.STABILO_88_44],
+    green: [pens.STABILO_88_63, pens.STABILO_88_36, pens.STABILO_88_33],
+    blue: [pens.STABILO_88_22, pens.STABILO_88_32, pens.STABILO_88_57]
+  }
+
+  const hatchOpts = {};
+  for (let color in colors) {
+    hatchOpts[color] = {
+      [TILES.W]: { stepSize: 1, angle: 45, pen: colors[color][2] },
+      [TILES.B]: { stepSize: 1, pen: colors[color][0] },
+      [TILES.H]: { stepSize: 1, wobble: 0, angle: 0, pen: colors[color][1] },
+      [TILES.D]: { stepSize: 5, wobble: 0, angle: -45, pen: pens.STABILO_88_94 }
+    }
+  }
+
+  function randomShape(nBlocks, gridSize, fillDirection, color) {
+    const positions = [
+      { 
+        position: [randomInt(gridSize[0]), randomInt(gridSize[1])], 
+        opts: { [fillDirection]: true, hatchOpts: hatchOpts[color] }
+      }
+    ];
     const directions = Object.keys(CARDINAL_DIRECTIONS);
     for (let i = 1; i < nBlocks; i++) {
-      const prev = positions[i - 1];
+      const prev = positions[i - 1].position;
       const dir = CARDINAL_DIRECTIONS[choose(directions)];
-      positions.push([prev[0] + dir[0], prev[1] + dir[1]]);
+      positions.push({ 
+        position: [prev[0] + dir[0], prev[1] + dir[1]], 
+        opts: { [fillDirection]: true, hatchOpts: hatchOpts[color] }
+      });
     }
     return positions;
   }
 
+  function randomTile(gridSize) {
+    const colors = Object.keys(hatchOpts)
+    return {
+      position: [randomInt(gridSize[0]), randomInt(gridSize[1])],
+      opts: { [choose(['fillLeft', 'fillRight'])]: true, hatchOpts: hatchOpts[choose(colors)] }
+    };
+  }
+
   const vmargin = 25;
-  const gridSize = [24, 24];
+  const gridSize = [15, 12];
   const tileSize = (height - vmargin * 2) / gridSize[1];
-  const hmargin = (width - tileSize * gridSize[0]) / 2
+  const hmargin = (width - tileSize * gridSize[0]) / 2;
   
   const positions = [
-    ...randomShape(15, gridSize), 
-    ...randomShape(15, gridSize),
-    ...randomShape(15, gridSize),
-    ...randomShape(15, gridSize)
+    ...randomShape(randomInt(3, 8), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))), 
+    ...randomShape(randomInt(3, 8), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    ...randomShape(randomInt(3, 8), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    ...randomShape(randomInt(3, 8), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    ...randomShape(randomInt(3, 8), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    // ...randomShape(randomInt(3, 8), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+
+    // ...randomShape(randomInt(1, 10), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    // ...randomShape(randomInt(1, 10), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    // ...randomShape(randomInt(1, 10), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    // ...randomShape(randomInt(5, 15), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    // ...randomShape(randomInt(5, 15), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))),
+    // ...randomShape(randomInt(5, 15), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors)))
   ];
 
-  const grid = TriGrid.createGrid(gridSize, positions);
+  // const positions = [];
+  // for (let i = 0; i < 40; i++) {
+  //   positions.push(...randomShape(randomInt(1, 6), gridSize, choose(['fillRight', 'fillLeft']), choose(Object.keys(colors))));
+  // }
+
+  // const positions = [];
+  for (let i = 0; i < 50; i++) {
+    positions.push(randomTile(gridSize));
+  }
+
+  const grid = TriGrid.createGrid(gridSize, positions, { hatchOpts: hatchOpts['red'] });
 
   TriGrid.drawShapes(grid, gridSize, tileSize, new Point(hmargin, vmargin));
 }
@@ -921,39 +997,61 @@ function interactiveGrid() {
 
   const gui = new dat.GUI();
 
-  const topLeft = new Point(0, 0);
-  const nXTiles = 8;
-  const nYTiles = 8;
-  const size = [height / nYTiles, height / nYTiles];
+  const margin = 25;
+  const nXTiles = 15;
+  const nYTiles = 12;
+  const tileSize = [(height - margin * 2) / nYTiles, (height - margin * 2) / nYTiles];
+  const topLeft = new Point((width - tileSize[0] * nXTiles) / 2, margin);
+
   const isWhiteBox = (box) => box && box.type[0] === TILES.W && box.type[1] === TILES.W;
+
   // Create and fill grid.
   const grid = TriGrid.createGrid([nXTiles, nYTiles]);
   let paths = [];
+
+  const palette = palettes.palette_gray;
+
+  const colors = {
+    red: [pens.STABILO_88_19, pens.STABILO_88_54, pens.STABILO_88_44],
+    green: [pens.STABILO_88_63, pens.STABILO_88_36, pens.STABILO_88_33],
+    blue: [pens.STABILO_88_22, pens.STABILO_88_41, pens.STABILO_88_57]
+  }
+
+  const hatchOpts = {};
+  for (let color in colors) {
+    hatchOpts[color] = {
+      [TILES.W]: { stepSize: 1, angle: 45, pen: colors[color][2] },
+      [TILES.B]: { stepSize: 1, pen: colors[color][0] },
+      [TILES.H]: { stepSize: 1, wobble: 0, angle: 0, pen: colors[color][1] },
+      [TILES.D]: { stepSize: 5, wobble: 0, angle: -45, pen: pens.STABILO_88_94 }
+    }
+  }
 
   const guicontrol = {
     run: () => {
       flatten(paths).forEach(path => path.remove());
       TriGrid.fill(grid, [nXTiles, nYTiles]);
-      paths = TriGrid.drawShapes(grid, [nXTiles, nYTiles], size[0]);
+      paths = TriGrid.drawShapes(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
     },
     reset: () => {
       flatten(paths).forEach(path => path.remove());
       for (let i = 0; i < nXTiles; i++) {
         for (let j = 0; j < nXTiles; j++) {
-          grid[i][j] = new Tile([]);
+          grid[i][j] = new Tile([], { hatchOpts: hatchOpts[guicontrol.color] });
         }
       }
-      paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
+      paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
     },
-    pen: pens.STABILO_88_56,
-    fillDirection: 'fillLeft'
+    // pen: palette[0],
+    color: 'red',
+    fillDirection: 'fillRight'
   }
   gui.add(guicontrol, 'run');
   gui.add(guicontrol, 'reset');
-  gui.add(guicontrol, 'pen', palettes.palette_cym);
+  gui.add(guicontrol, 'color', ['red', 'green', 'blue']);
   gui.add(guicontrol, 'fillDirection', ['fillLeft', 'fillRight']);
 
-  paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0])
+  paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
 
   paper.view.onClick = (event) => {
     // clear grid of all non-raised tiles
@@ -961,32 +1059,277 @@ function interactiveGrid() {
       for (let j = 0; j < nYTiles; j++) {
         const box = grid[i][j];
         if (!isWhiteBox(box)) {
-          grid[i][j] = new Tile([TILES.D, TILES.D], { pen: pens.BLACK });
+          grid[i][j] = new Tile([TILES.D, TILES.D], { hatchOpts: hatchOpts[guicontrol.color] });
         }
       }
     }
 
     flatten(paths).forEach(path => path.remove());
-    const tileOffset = event.point.subtract(topLeft).divide(size);
+    const tileOffset = event.point.subtract(topLeft).divide(tileSize);
     const [tileX, tileY] = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
     const box = TriGrid.getTile(grid, [tileX, tileY]);
     if (box) {
       if (isWhiteBox(box)) {
-        grid[tileX][tileY] = new Tile([TILES.D, TILES.D], { pen: guicontrol.pen });
+        grid[tileX][tileY] = new Tile([TILES.D, TILES.D], { hatchOpts });
       } else {
         grid[tileX][tileY] = new Tile(
           [TILES.W, TILES.W], 
-          { pen: guicontrol.pen, [guicontrol.fillDirection]: true }
+          { 
+            hatchOpts: hatchOpts[guicontrol.color], 
+            [guicontrol.fillDirection]: true 
+          }
         );
       }
     }
 
     TriGrid.fill(grid, [nXTiles, nYTiles]);
 
-    paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], size[0]);
+    paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
   }
 }
-interactiveGrid();
+// interactiveGrid();
+
+// Should use boethius!
+function invention1() {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const hmargin = 25;
+  const gridSize = [16 * 4, 24];
+  const tileSize = (width - hmargin * 2) / gridSize[0];
+  const vmargin = (height - tileSize * gridSize[1]) / 2;
+
+  const positions = [
+    { position: [0, 0], opts: { fillRight: true, pen: pens.BLACK } },
+    { position: [1, 2], opts: { fillRight: true, pen: pens.BLACK } },
+    { position: [2, 4], opts: { fillRight: true, pen: pens.BLACK } },
+    { position: [3, 6], opts: { fillLeft: true, pen: pens.BLACK } },
+    { position: [4, 8], opts: { fillLeft: true, pen: pens.BLACK } }
+  ];
+
+  const grid = TriGrid.createGrid(gridSize, positions);
+
+  TriGrid.drawShapes(grid, gridSize, tileSize, new Point(hmargin, vmargin));
+}
+// invention1();
+
+function gameOfLifeSketch() {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const gui = new dat.GUI();
+
+  const margin = 25;
+  const nXTiles = 100;
+  const nYTiles = 75;
+  const tileSize = [(height - margin * 2) / nYTiles, (height - margin * 2) / nYTiles];
+  const topLeft = new Point((width - tileSize[0] * nXTiles) / 2, margin);
+
+  const isWhiteBox = (box) => box && box.type[0] === TILES.W && box.type[1] === TILES.W;
+
+  // Create and fill grid.
+  let grid = TriGrid.createGrid([nXTiles, nYTiles]);
+  let paths = [];
+
+  function clearPaths() {
+    flatten(paths).forEach(path => path.remove());
+  }
+
+  const colors = {
+    red: [pens.STABILO_88_19, pens.STABILO_88_54, pens.STABILO_88_44],
+    green: [pens.STABILO_88_63, pens.STABILO_88_36, pens.STABILO_88_33],
+    blue: [pens.STABILO_88_22, pens.STABILO_88_41, pens.STABILO_88_57]
+  }
+
+  const hatchOpts = {};
+  for (let color in colors) {
+    hatchOpts[color] = {
+      [TILES.W]: { stepSize: 1, angle: 45, pen: colors[color][2] },
+      [TILES.B]: { stepSize: 1, pen: colors[color][0] },
+      [TILES.H]: { stepSize: 1, wobble: 0, angle: 0, pen: colors[color][1] },
+      [TILES.D]: { stepSize: 5, wobble: 0, angle: -45, pen: pens.STABILO_88_94 }
+    }
+  }
+
+  const guicontrol = {
+    nRandom: 50,
+    startLife: () => {
+      clearPaths();
+      cleanGrid(grid);
+      grid = gameOfLife(grid, [nXTiles, nYTiles], createLiveTile, createDeadTile);
+      paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
+    },
+    stopLife: () => {
+
+    },
+    randomize: () => {
+      clearPaths();
+      const positions = [];
+      const gridSize = [nXTiles, nYTiles];
+      for (let i = 0; i < guicontrol.nRandom; i++) {
+        positions.push(randomTile(gridSize));
+      }
+      grid = TriGrid.createGrid(gridSize, positions, { hatchOpts: hatchOpts['red'] });
+      paths = TriGrid.drawOutline(grid, gridSize, tileSize[0], topLeft);
+    },
+    run: () => {
+      clearPaths();
+      TriGrid.fill(grid, [nXTiles, nYTiles]);
+      paths = TriGrid.drawShapes(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
+    },
+    reset: () => {
+      clearPaths();
+      for (let i = 0; i < nXTiles; i++) {
+        for (let j = 0; j < nXTiles; j++) {
+          grid[i][j] = new Tile([], { color: guicontrol.color,  hatchOpts: hatchOpts[guicontrol.color] });
+        }
+      }
+      paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
+    },
+    // pen: palette[0],
+    color: 'red',
+    fillDirection: 'fillRight'
+  }
+  gui.add(guicontrol, 'run');
+  gui.add(guicontrol, 'reset');
+  gui.add(guicontrol, 'startLife');
+  gui.add(guicontrol, 'stopLife');
+  gui.add(guicontrol, 'nRandom');
+  gui.add(guicontrol, 'randomize');
+  gui.add(guicontrol, 'color', ['red', 'green', 'blue']);
+  gui.add(guicontrol, 'fillDirection', ['fillLeft', 'fillRight']);
+
+  function randomTile(gridSize) {
+    const colors = Object.keys(hatchOpts);
+    const color = choose(colors);
+    return {
+      position: [randomInt(gridSize[0]), randomInt(gridSize[1])],
+      opts: { 
+        [choose(['fillLeft', 'fillRight'])]: true, 
+        color,
+        hatchOpts: hatchOpts[color] 
+      }
+    };
+  }
+
+  function createLiveTile(parents) {
+    let fillDirection, color;
+    if (parents) {
+      let maxColor = 0;
+      const colorCount = countBy(parents, tile => tile.opts[0].color);
+      for (let clr in colorCount) {
+        if (colorCount[clr] > maxColor) {
+          color = clr;
+          maxColor = colorCount[clr];
+        }
+      }
+      const fillDirectionCount = countBy(parents, tile => tile.opts.fillDirection);
+      if (fillDirectionCount.fillLeft === fillDirectionCount.fillRight) {
+        fillDirection = random() < 0.5 ? 'fillLeft' : 'fillRight';
+      } else if (fillDirectionCount.fillLeft > fillDirectionCount.fillRight) {
+        fillDirection = 'fillLeft';
+      } else {
+        fillDirection = 'fillRight';
+      }
+    } else {
+      fillDirection = guicontrol.fillDirection;
+      color = guicontrol.color;
+    }
+    return new Tile(
+      [TILES.W, TILES.W],
+      {
+        hatchOpts: hatchOpts[color],
+        color,
+        [fillDirection]: true
+      }
+    );
+  }
+
+  function createDeadTile() {
+    return new Tile([TILES.D, TILES.D], { hatchOpts: hatchOpts['red'] });
+  }
+
+  function cleanGrid (grid) {
+    for (let i = 0; i < nXTiles; i++) {
+      for (let j = 0; j < nYTiles; j++) {
+        const box = grid[i][j];
+        if (!isWhiteBox(box)) {
+          const color = guicontrol.color;
+          grid[i][j] = new Tile(
+            [TILES.D, TILES.D], 
+            { hatchOpts: hatchOpts[color], color });
+        }
+      }
+    }
+  }
+
+  paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
+
+  paper.view.onClick = (event) => {
+    // clear grid of all non-raised tiles
+    cleanGrid(grid);
+    clearPaths();
+    const tileOffset = event.point.subtract(topLeft).divide(tileSize);
+    const [tileX, tileY] = [Math.floor(tileOffset.x), Math.floor(tileOffset.y)];
+    const box = TriGrid.getTile(grid, [tileX, tileY]);
+    if (box) {
+      if (isWhiteBox(box)) {
+        grid[tileX][tileY] = createDeadTile();
+      } else {
+        grid[tileX][tileY] = createLiveTile();
+      }
+    }
+
+    TriGrid.fill(grid, [nXTiles, nYTiles]);
+
+    paths = TriGrid.drawOutline(grid, [nXTiles, nYTiles], tileSize[0], topLeft);
+  }
+}
+gameOfLifeSketch();
+
+function gameOfLife(grid, size, createLive, createDead) {
+  const next = [];
+  for (let i = 0; i < size[0]; i++) {
+    next.push([]);
+  }
+  for (let x = 0; x < size[0]; x++) {
+    for (let y = 0; y < size[1]; y++) {
+      const tile = grid[x][y];
+      const neighbors = getNeighbors(grid, x, y);
+      if (!isLive(tile) && neighbors.length === 3) {
+        // live
+        next[x][y] = createLive(neighbors);
+      } else if (neighbors.length < 2 || neighbors.length > 3) {
+        // dead
+        next[x][y] = createDead();
+      } else {
+        next[x][y] = tile;
+      }
+    }
+  }
+
+  function isLive(tile) {
+    return tile && tile.type[0] === TILES.W;
+  }
+
+  function getNeighbors(grid, x, y) {
+    const neighbors = [];
+    for (let dir in DIRECTIONS) {
+      const [dx, dy] = DIRECTIONS[dir];
+      const tile = TriGrid.getTile(grid, [x + dx, y + dy]);
+      if (isLive(tile)) {
+        neighbors.push(tile);
+      }
+    }
+    return neighbors;
+  }
+
+  return next;
+}
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);

@@ -2,6 +2,10 @@ import paper, { Group, Layer, Color } from 'paper';
 import { isArray } from 'lodash';
 
 export const BLACK = 'BLACK';
+export const RED = 'RED';
+export const BLUE = 'BLUE';
+export const GREEN = 'GREEN';
+export const YELLOW = 'YELLOW';
 
 export const PRISMA05_RED = 'PRISMA05_RED';
 export const PRISMA05_GREEN = 'PRISMA05_GREEN';
@@ -63,6 +67,7 @@ export const STABILO_88_63 = 'STABILO_88_63';
 export const STABILO_88_54 = 'STABILO_88_54';
 export const STABILO_88_40 = 'STABILO_88_40';
 export const STABILO_88_50 = 'STABILO_88_50';
+export const STABILO_88_19 = 'STABILO_88_19';
 export const STABILO_88_45 = 'STABILO_88_45';
 export const STABILO_88_22 = 'STABILO_88_22';
 
@@ -102,6 +107,19 @@ export const penInfo = {
   [BLACK]: {
     color: 'black'
   },
+  [RED]: {
+    color: 'red'
+  },
+  [GREEN]: {
+    color: 'blue'
+  },
+  [BLUE]: {
+    color: 'blue'
+  },
+  [YELLOW]: {
+    color: 'yellow'
+  },
+  // Prisma 05
   [PRISMA05_RED]: {
     color: new Color('#f00'),
     strokeWidth: PRISMA_STROKE_WIDTH
@@ -168,6 +186,10 @@ export const penInfo = {
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
   [STABILO_88_50]: {
+    color: new Color('#DC143C'),
+    strokeWidth: STABILO_88_STROKE_WIDTH
+  },
+  [STABILO_88_19]: {
     color: new Color('#DC143C'),
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
