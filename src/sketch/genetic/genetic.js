@@ -237,6 +237,12 @@ async function smartRockets() {
     fillColor: 'black'
   });
 
+  const obstacle = new Path.Rectangle({
+    from: [width/2 - 100, height / 2],
+    to: [width / 2 + 100, height / 2 + 10],
+    fillColor: 'brown'
+  });
+
   const lifetime = 100;
   const populationSize = 100;
   const mutationRate = 0.01;
@@ -247,7 +253,7 @@ async function smartRockets() {
     population.push(createEntity(lifetime));
   }
 
-  const nGenerations = 2;
+  const nGenerations = 200;
   // const nGenerations = 500;
   for (let i = 0; i < nGenerations; i++) {
     const rockets = await live(population);
@@ -275,6 +281,10 @@ async function smartRockets() {
     return Promise.all(rockets);
   }
 
+  function hasCollided(obstacle, rocket) {
+    return obstacle.hitTest(rocket.location);
+  }
+
   function simulate(dna) {
     const loc = new Point(width / 2, height - 20);
     const vel = new Point(0, 0);
@@ -283,10 +293,14 @@ async function smartRockets() {
     return new Promise((resolve) => {
       const interval = setInterval(() => {
         if (count < dna.length) {
-          rocket.applyForce(dna[count]);
           count++;
-          rocket.update();
-          rocket.draw();
+          if (hasCollided(obstacle, rocket)) {
+
+          } else {
+            rocket.applyForce(dna[count]);
+            rocket.update();
+            rocket.draw();
+          }
         } else {
           clearInterval(interval);
           resolve(rocket);

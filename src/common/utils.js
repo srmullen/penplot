@@ -83,6 +83,10 @@ export function radiansToDegrees (n) {
   return (n * 180) / Math.PI;
 }
 
+export function degreesToRadians(n) {
+  return n * Math.PI / 180;
+}
+
 export function timer (fn) {
   const now = Date.now();
   const ret = fn();

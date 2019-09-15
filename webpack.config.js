@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['genetic', 'line_sort', 'il_cubo', 'convolutions'];
+const sketches = ['genetic', 'line_sort', 'contourmaps', 'primative'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};
@@ -50,6 +50,10 @@ module.exports = {
   module: {
     rules: [
       { test: /\.js$/, exclude: /node_modules/, loader: "babel-loader" },
+      { 
+        test: /\.txt$/i,
+        use: 'raw-loader'
+      },
       {
         test: /\.(png|svg|jpg|jpeg|gif)$/,
         use: [

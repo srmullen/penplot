@@ -95,6 +95,7 @@ function relaxationDisplacementStep (points, { distance = 20, stepDist = 1 } = {
   return [ret, changed];
 }
 
+// http://compform.net/strategy/#relaxation-displacement
 function relaxationDisplacement(points, opts) {
   let changed = true;
   let displaced = points;
