@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['genetic', 'line_sort', 'contourmaps', 'primative'];
+const sketches = ['genetic', 'metaballs', 'maps', 'noise', 'convolutions'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};
@@ -44,8 +44,12 @@ module.exports = {
     alias: {
       // paper: path.resolve(__dirname, 'src/paper-modified'),
       common: path.resolve(__dirname, 'src/common'),
-      images: path.resolve(__dirname, 'src/images')
+      images: path.resolve(__dirname, 'src/images'),
+      data: path.resolve(__dirname, 'data')
     }
+  },
+  node: {
+    fs: 'empty'
   },
   module: {
     rules: [

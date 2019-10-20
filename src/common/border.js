@@ -77,3 +77,24 @@ export function clipToBorder(border, paths) {
   rect.remove();
   return clippedPaths;
 }
+
+/**
+ * 
+ * @param {Rectangle config} border 
+ * @param {paper.Path[]} paths 
+ */
+export function clipPathsToBorder(border, paths, opts={}) {
+  const rect = new Path.Rectangle(border);
+  const clipped = [];
+  for (let i = 0; i < paths.length; i++) {
+    const path = paths[i];
+    const intersection = rect.intersect(path, { trace: true });
+    intersection.setStyle(path.style);
+    clipped.push(intersection);
+    if (opts.remove) {
+      path.remove();
+    }
+  }
+  rect.remove();
+  return clipped;
+}

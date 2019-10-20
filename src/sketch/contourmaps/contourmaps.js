@@ -107,6 +107,8 @@ function haversine(from, to) {
   return math.atan2(math.sqrt(a), math.sqrt(1-a));
 }
 
+main();
+
 async function main() {
   // Not yet sure how to use pixel data here. Appears to be one extra row or column of data (perhaps line breaks).
   const tile = await fetch(tileUrl(11, 330, 790), options).then(decode);
@@ -114,11 +116,11 @@ async function main() {
 
 
   // This gives error: Canvas has been tainted by cross-origin data.
-  // const raster = new Raster(tileUrl(11, 330, 790));
-  // raster.onLoad = () => {
-  //   window.raster = raster;
-  //   const pixel = raster.getPixel(10, 10);
-  // }
+  const raster = new Raster(tileUrl(11, 330, 790));
+  raster.onLoad = () => {
+    window.raster = raster;
+    // const pixel = raster.getPixel(10, 10);
+  }
 }
 
 function decode(response) {

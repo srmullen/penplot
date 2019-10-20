@@ -558,12 +558,13 @@ function splitReverse(arr, depth=0) {
 
 // radixSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
 // radixSort(reverseItems(5, palettes.palette_large), {}, A4);
-radixSort(reverseItems(15, palettes.palette_hot_and_cold), {}, A4);
+// radixSort(reverseItems(15, palettes.palette_hot_and_cold), {}, A4);
 // radixSort(reverseItems(14, palettes.palette_large), {}, A4);
 
 // bitonicSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
-// bitonicSort(reverseItems(25, palettes.palette_large), {}, A4);
 // bitonicSort(repeatItems(25, palettes.palette_rgb3), {}, A4);
+// bitonicSort(reverseItems(20, palettes.palette_large), {}, A4);
+bitonicSort(repeatItems(20, palettes.palette_large), {}, A4);
 // bitonicSort(reverseItems(14, palettes.palette_large), {}, A4);
 
 window.saveAsSvg = function save(name) {

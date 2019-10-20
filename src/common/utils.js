@@ -124,6 +124,20 @@ export function choose (arr) {
   return arr[randomInt(arr.length)];
 }
 
+/**
+ * Choose n items from array with replacement
+ * @param {Array} arr
+ * @param {Number?} n
+ * @param {boolean} replacement
+ */
+export function chooseN(arr, n) {
+  const ret = [];
+  for (let i = 0; i < n; i++) {
+    ret.push(choose(arr));
+  }
+  return ret;
+}
+
 export function wchoose (weights, arr) {
   const index = weightedRandom(weights);
   return arr[index];
