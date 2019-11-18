@@ -1,6 +1,5 @@
 import paper, { Point, Path, Group } from 'paper';
 import math, { random, randomInt } from 'mathjs';
-import please from 'pleasejs';
 import { range, sortBy, countBy, last, flatten, isArray } from 'lodash';
 import dat from 'dat.gui';
 import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
@@ -9,7 +8,9 @@ import {
 } from 'common/utils';
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
-import { GPU } from 'gpu.js'; // This does not seem to be the local node modules
+import { GPU } from 'gpu.js';
+import { createValueNoise2dKernel } from './valueNoiseGPU';
+import { renderAnimation, recordAnimation } from './utils';
 
 const PAPER_SIZE = STRATH_SMALL.landscape;
 const [width, height] = PAPER_SIZE;
@@ -18,6 +19,8 @@ const canvas = createCanvas(PAPER_SIZE);
 
 window.canvas = canvas;
 window.GPU = GPU;
+
+// runValueNoiseGPU();
 
 function sum(ns = []) {
   return ns.reduce((acc, n) => acc + n, 0);
@@ -74,6 +77,8 @@ function smoothStep(from, to, val) {
 
 // TODO:
 // Create perlin noise on GPU.
+// Benchmarks. CPU vs GPU.
+// Write essay.
 // Marching cubes on noise.
 // Implement other noise types. Brownian, worley, curl perlin, curl worley.
 
@@ -151,6 +156,45 @@ class ValueNoise2d {
   }
 }
 
+class ValueNoiseGPU {
+  constructor(gpu) {
+    this.gpu = gpu;
+
+    this.gridSize = 16;
+    this.grid = [];
+    // Create an array of random values.
+    for (let i = 0; i < Math.pow(this.gridSize, 2); i++) {
+      this.grid.push(Math.random());
+    }
+
+    gpu.addFunction(function noise(x, y) {
+      const xpix = Math.floor(x) % this.gridSize;
+      const ypix = Math.floor(y) % this.gridSize;
+      const xoff = x - Math.floor(x);
+      const yoff = y - Math.floor(y);
+      const topLeft = this.getValue(xpix, ypix);
+      const topRight = this.getValue(xpix + 1, ypix);
+      const bottomRight = this.getValue(xpix + 1, ypix + 1);
+      const bottomLeft = this.getValue(xpix, ypix + 1);
+
+      // const interpolate = lerp;
+      // const interpolate = cerp;
+      const interpolate = smoothStep;
+      const ab = interpolate(topLeft, topRight, xoff);
+      const cd = interpolate(bottomLeft, bottomRight, xoff);
+      return interpolate(ab, cd, yoff);
+    }, {
+      returnType: 'Float'
+    });
+
+    this.kernel = gpu.createKernel(function () {
+      return noise(this.thread.x, this.thread.y);
+    }, {
+      output: [750, 750]
+    });
+  }
+}
+
 class PerlinNoise2dGrid {
   constructor() {
     // Create the grid with random gradients.
@@ -177,12 +221,6 @@ class PerlinNoise2dGrid {
       this.grid[xpix+1][ypix+1], // bottom right
       this.grid[xpix][ypix+1] // bottom left
     ];
-    // const gradients = [
-    //   normalize([1, 1]),
-    //   normalize([-1, 1]),
-    //   normalize([-1, -1]),
-    //   normalize([1, -1])
-    // ];
     const vecs = [
       [xoff, yoff],
       [xoff-1, yoff],
@@ -404,61 +442,42 @@ function create3dNoise() {
   return noiseArr;
 }
 
-const gpu = new GPU({
-  canvas,
-  mode: 'webgl2'
-});
+function renderPrecomputedCpuNoise() {
+  const gpu = new GPU({
+    canvas,
+    mode: 'webgl2'
+  });
 
-const render = gpu.createKernel(function () {
-  const x = this.thread.x;
-  const y = this.thread.y;
-  // const z = this.thread.z;
-  const z = x * y;
-  this.color(
-    (Math.sin(x * (y / 2) * 3.14159 * 0.01) + 1) / 2,
-    (Math.sin(y * (x / 3) * 3.14159 * 0.01) + 1) / 2,
-    (Math.sin(z * 3.14159 * 0.01) + 1) / 2,
-    1
-  )
-}, {
-  graphical: true,
-  output: [750, 750]
-});
+  const renderNoise2d = gpu.createKernel(function (noise) {
+    const v = (noise[this.thread.x][this.thread.y] + 1) / 2;
+    this.color(v, v, v, 1);
+  }, {
+    graphical: true,
+    output: [750, 750]
+  });
 
-// render();
-// const pixels = render.getPixels();
-// console.log(pixels);
+  const renderNoise3d = gpu.createKernel(function (noise, z) {
+    const v = (noise[this.thread.x][this.thread.y][z] + 1) / 2;
+    this.color(v, v, v, 1);
+  }, {
+    graphical: true,
+    output: [size3d[0], size3d[1]]
+  });
 
-const renderNoise2d = gpu.createKernel(function (noise) {
-  const v = (noise[this.thread.x][this.thread.y] + 1) / 2;
-  this.color(v, v, v, 1);
-}, {
-  graphical: true,
-  output: [750, 750]
-});
+  let frame = 0;
+  function animate() {
+    renderNoise3d(noiseArr, frame % size3d[2]);
+    frame++;
+    requestAnimationFrame(animate);
+  }
 
-const renderNoise3d = gpu.createKernel(function (noise, z) {
-  const v = (noise[this.thread.x][this.thread.y][z] + 1) / 2;
-  this.color(v, v, v, 1);
-}, {
-  graphical: true,
-  output: [size3d[0], size3d[1]]
-});
-
-let frame = 0;
-function animate() {
-  renderNoise3d(noiseArr, frame % size3d[2]);
-  frame++;
-  requestAnimationFrame(animate);
-}
-
-// Maybe the reason animating large z depth is because it takes time to pass
-// all the data onto the GPU. Try handling that on the cpu instead. Yes, that fixes the issue.
-function animate2d() {
-  renderNoise2d(noiseArr[frame % size3d[2]]);
-  frame++;
-  requestAnimationFrame(animate2d);
-}
+  // Maybe the reason animating large z depth is because it takes time to pass
+  // all the data onto the GPU. Try handling that on the cpu instead. Yes, that fixes the issue.
+  function animate2d() {
+    renderNoise2d(noiseArr[frame % size3d[2]]);
+    frame++;
+    requestAnimationFrame(animate2d);
+  }
 
 // const noiseArr = create2dNoise();
 const noiseArr = create3dNoise();
@@ -467,3 +486,109 @@ const noiseArr = create3dNoise();
 // renderNoise3d(noiseArr, frame);
 // animate();
 animate2d()
+}
+// renderPrecomputedCpuNoise();
+
+function animateWhiteNoise() {
+  const whiteNoise = gpu.createKernel(function() {
+    this.color(Math.random(), Math.random(), Math.random(), 1);
+  }, {
+    graphical: true,
+    output: [750, 750]
+  });
+
+  function animate() {
+    whiteNoise();
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+// animateWhiteNoise();
+
+function animateValueNoise() {
+  const valueNoise = gpu.createKernel(function () {
+    const number = Math.random();
+    return [number];
+  }, {
+    // returnType: 'Float',
+    output: [1]
+  });
+
+  const renderValueNoise = gpu.createKernel(function () {
+    const v = valueNoise();
+    // const v = Math.random();
+    this.color(v[0], v[0], v[0], 1);
+    // this.color(Math.random(), Math.random(), Math.random(), 1);
+  }, {
+    graphical: true,
+    output: [750, 750]
+  });
+
+  const render = gpu.combineKernels(valueNoise, renderValueNoise);
+
+  // const renderValueNoise = gpu.combineKernels(valueNoise, );
+  function animate() {
+    // renderValueNoise();
+    render();
+    // requestAnimationFrame(animate);
+  }
+  animate();
+}
+// animateValueNoise();
+
+function combineKernelsExample() {
+  const add = gpu.createKernel(function (a, b) {
+    // return a[this.thread.x] + b[this.thread.x] + Math.random();
+    return Math.random();
+  }).setOutput([20, 20]);
+
+  const multiply = gpu.createKernel(function (a, b) {
+    // return Math.random();
+    this.color(Math.random(), Math.random(), Math.random());
+    return a[this.thread.x][this.thread.y] * b[this.thread.x][this.thread.y];
+  }).setGraphical(true).setOutput([20, 20]);
+
+  const superKernel = gpu.combineKernels(add, multiply, function (a, b, c) {
+    return multiply(add(a, b), c);
+  });
+  const a = range(20);
+  const b = range(20);
+  const c = range(20);
+  console.log(superKernel(a, b, c));
+}
+// combineKernelsExample();
+
+
+function valueNoiseGpuExample() {
+  const gpu = new GPU({
+    canvas,
+    mode: 'webgl2'
+  });
+
+  const gridSize = 100;
+  const grid = [];
+
+  for (let i = 0; i < Math.pow(gridSize, 2); i++) {
+    grid.push(Math.random());
+  }
+  const valueNoiseKernel = createValueNoise2dKernel(gpu);
+
+  renderAnimation((step) => valueNoiseKernel(grid, gridSize, step * 0.01), 10);
+}
+valueNoiseGpuExample();
+
+function valueNoise2dAnimatedExample() {
+  const gpu = new GPU({
+    canvas,
+    mode: 'webgl2'
+  });
+
+  const gridSize = 16;
+  const grid = [];
+
+  for (let i = 0; i < Math.pow(gridSize, 2); i++) {
+    grid.push(Math.random());
+    const valueNoiseKernel = createValueNoise3dKernel(gpu);
+    valueNoiseKernel(grid, gridSize, 0.01);
+  }
+}

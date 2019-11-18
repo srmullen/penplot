@@ -4,22 +4,6 @@ import { randomInt } from 'mathjs';
 import weightedRandom from 'weighted-random';
 import { isFunction } from 'lodash';
 
-// export function saveAsSVG (project, name='default') {
-//   console.log('Saving');
-//   const content = timer(() => {
-//     return project.exportSVG({asString: true});
-//   });
-//   const body = {
-//     name,
-//     content
-//   }
-//   axios.put('/api/svg', body, {headers: {'content-type': 'application/json'}}).then(res => {
-//     console.log(res);
-//   }).catch(err => {
-//     console.error(err);
-//   });
-// }
-
 export function saveAsSVG (project, name='default') {
   console.log('Saving');
   const content = timer(() => {
