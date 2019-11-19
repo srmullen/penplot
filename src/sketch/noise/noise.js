@@ -9,7 +9,7 @@ import {
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { GPU } from 'gpu.js';
-import { createValueNoise2dKernel } from './valueNoiseGPU';
+import { createValueNoise2dKernel, createValueNoise3dKernel } from './valueNoiseGPU';
 import { renderAnimation, recordAnimation } from './utils';
 
 const PAPER_SIZE = STRATH_SMALL.landscape;
@@ -153,45 +153,6 @@ class ValueNoise2d {
     const ab = interpolate(topLeft, topRight, xoff);
     const cd = interpolate(bottomLeft, bottomRight, xoff);
     return interpolate(ab, cd, yoff);
-  }
-}
-
-class ValueNoiseGPU {
-  constructor(gpu) {
-    this.gpu = gpu;
-
-    this.gridSize = 16;
-    this.grid = [];
-    // Create an array of random values.
-    for (let i = 0; i < Math.pow(this.gridSize, 2); i++) {
-      this.grid.push(Math.random());
-    }
-
-    gpu.addFunction(function noise(x, y) {
-      const xpix = Math.floor(x) % this.gridSize;
-      const ypix = Math.floor(y) % this.gridSize;
-      const xoff = x - Math.floor(x);
-      const yoff = y - Math.floor(y);
-      const topLeft = this.getValue(xpix, ypix);
-      const topRight = this.getValue(xpix + 1, ypix);
-      const bottomRight = this.getValue(xpix + 1, ypix + 1);
-      const bottomLeft = this.getValue(xpix, ypix + 1);
-
-      // const interpolate = lerp;
-      // const interpolate = cerp;
-      const interpolate = smoothStep;
-      const ab = interpolate(topLeft, topRight, xoff);
-      const cd = interpolate(bottomLeft, bottomRight, xoff);
-      return interpolate(ab, cd, yoff);
-    }, {
-      returnType: 'Float'
-    });
-
-    this.kernel = gpu.createKernel(function () {
-      return noise(this.thread.x, this.thread.y);
-    }, {
-      output: [750, 750]
-    });
   }
 }
 
@@ -573,22 +534,23 @@ function valueNoiseGpuExample() {
   }
   const valueNoiseKernel = createValueNoise2dKernel(gpu);
 
-  renderAnimation((step) => valueNoiseKernel(grid, gridSize, step * 0.01), 10);
+  renderAnimation((step) => valueNoiseKernel(grid, gridSize, step * 0.01), Infinity);
 }
-valueNoiseGpuExample();
+// valueNoiseGpuExample();
 
-function valueNoise2dAnimatedExample() {
+function valueNoise3dAnimatedExample() {
   const gpu = new GPU({
     canvas,
     mode: 'webgl2'
   });
 
-  const gridSize = 16;
+  const gridSize = 100;
   const grid = [];
-
-  for (let i = 0; i < Math.pow(gridSize, 2); i++) {
+  for (let i = 0; i < Math.pow(gridSize, 3); i++) {
     grid.push(Math.random());
-    const valueNoiseKernel = createValueNoise3dKernel(gpu);
-    valueNoiseKernel(grid, gridSize, 0.01);
   }
+
+  const valueNoiseKernel = createValueNoise3dKernel(gpu);
+  renderAnimation((step) => valueNoiseKernel(grid, gridSize, 0.005, step), Infinity);
 }
+valueNoise3dAnimatedExample();
