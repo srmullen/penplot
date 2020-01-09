@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['genetic', 'metaballs', 'maps', 'noise', 'convolutions'];
+const sketches = ['save_the_date', 'maps', 'noise', 'lissajous_curve_table'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};
@@ -45,6 +45,7 @@ module.exports = {
       // paper: path.resolve(__dirname, 'src/paper-modified'),
       common: path.resolve(__dirname, 'src/common'),
       images: path.resolve(__dirname, 'src/images'),
+      fonts: path.resolve(__dirname, 'src/fonts'),
       data: path.resolve(__dirname, 'data')
     }
   },
@@ -53,6 +54,10 @@ module.exports = {
   },
   module: {
     rules: [
+      {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"]
+      },
       { test: /\.js$/, exclude: /node_modules/, loader: "babel-loader" },
       { 
         test: /\.txt$/i,

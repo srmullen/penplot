@@ -92,6 +92,9 @@ export const STABILO_88_040 = 'STABILO_88_040';
 export const STABILO_88_024 = 'STABILO_88_024';
 export const STABILO_88_054 = 'STABILO_88_054';
 
+export const GELLY_ROLL_METALLIC_GOLD = 'GELLY_ROLE_METALLIC_GOLD';
+export const UNIBALL_SILVER = 'UNIBALL_SILVER';
+export const UNIBALL_SILVER_FILLED = 'UNIBALL_SILVER_FILLED';
 
 export const stabilo88 = [
   STABILO_88_44,
@@ -270,6 +273,18 @@ export const penInfo = {
     color: new Color('#C71585'),
     strokeWidth: STABILO_88_STROKE_WIDTH
   },
+  [GELLY_ROLL_METALLIC_GOLD]: {
+    color: 'gold',
+    strokeWidth: 1
+  },
+  [UNIBALL_SILVER]: {
+    color: 'silver',
+    strokeWidth: 1
+  },
+  [UNIBALL_SILVER_FILLED]: {
+    color: 'silver',
+    strokeWidth: 1
+  }
 }
 
 export function info (pen) {

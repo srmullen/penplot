@@ -553,4 +553,4 @@ function valueNoise3dAnimatedExample() {
   const valueNoiseKernel = createValueNoise3dKernel(gpu);
   renderAnimation((step) => valueNoiseKernel(grid, gridSize, 0.005, step), Infinity);
 }
-valueNoise3dAnimatedExample();
+// valueNoise3dAnimatedExample();
