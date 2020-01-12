@@ -9,6 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "gpu.js": "^2.1.0"
+    "gpu.js": "^2.4.8"
   }
 }

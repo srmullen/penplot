@@ -9,7 +9,7 @@ import {
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { GPU } from 'gpu.js';
-import { createValueNoise2dKernel, createValueNoise3dKernel } from './valueNoiseGPU';
+import { createValueNoise2dKernel, createValueNoise3dKernel, createValueNoise3dFn } from './valueNoiseGPU';
 import { renderAnimation, recordAnimation } from './utils';
 
 const PAPER_SIZE = STRATH_SMALL.landscape;
@@ -18,7 +18,7 @@ const canvas = createCanvas(PAPER_SIZE);
 // paper.setup(canvas);
 
 window.canvas = canvas;
-window.GPU = GPU;
+// window.GPU = GPU;
 
 // runValueNoiseGPU();
 
@@ -520,7 +520,7 @@ function combineKernelsExample() {
 // combineKernelsExample();
 
 
-function valueNoiseGpuExample() {
+function valueNoise2dExample() {
   const gpu = new GPU({
     canvas,
     mode: 'webgl2'
@@ -536,9 +536,37 @@ function valueNoiseGpuExample() {
 
   renderAnimation((step) => valueNoiseKernel(grid, gridSize, step * 0.01), Infinity);
 }
-// valueNoiseGpuExample();
+// valueNoise2dExample();
 
 function valueNoise3dAnimatedExample() {
+  const gpu = new GPU({
+    canvas,
+    mode: 'webgl2'
+  });
+
+  const gridSize = 100;
+
+  const valueNoiseKernel = createValueNoise3dFn(gpu, gridSize);
+  const rates = [
+    random(0.0001, 0.05), random(0.0001, 0.05), random(0.0001, 0.05), 
+    random(0.0001, 0.05), random(0.0001, 0.05), random(0.0001, 0.05), 
+    random(0.0001, 0.05), random(0.0001, 0.05), random(0.0001, 0.05), 
+  ];
+
+  // const rates = [
+  //   0.01, 0.005, 0.03,
+  //   0.01, 0.05, 0.03,
+  //   0.001, 0.005, 0.03
+  // ]
+  renderAnimation((step) => {
+    valueNoiseKernel(
+      rates, step);
+  }, Infinity);
+}
+valueNoise3dAnimatedExample();
+
+
+function perlinNoise2dExample() {
   const gpu = new GPU({
     canvas,
     mode: 'webgl2'
@@ -550,7 +578,13 @@ function valueNoise3dAnimatedExample() {
     grid.push(Math.random());
   }
 
-  const valueNoiseKernel = createValueNoise3dKernel(gpu);
-  renderAnimation((step) => valueNoiseKernel(grid, gridSize, 0.005, step), Infinity);
+  const valueNoiseKernel = createValueNoise3dKernel(gpu, grid, gridSize);
+  renderAnimation((step) => {
+    valueNoiseKernel(
+      [
+        0.005, 0.005, 0.005,
+        0.005, 0.005, 0.005,
+        0.005, 0.005, 0.005
+      ], step);
+  }, Infinity);
 }
-// valueNoise3dAnimatedExample();

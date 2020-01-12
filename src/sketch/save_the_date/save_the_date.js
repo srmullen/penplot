@@ -4,7 +4,7 @@ import paper, { Point, Path, CompoundPath, PointText } from 'paper';
 import math, { random, randomInt } from 'mathjs';
 import { range, sortBy, countBy, last, flatten, isArray } from 'lodash';
 import dat from 'dat.gui';
-import { A4, STRATH_SMALL, createCanvas } from 'common/setup';
+import { A4, STRATH_SMALL, WEDDING_SAVE_THE_DATE, createCanvas } from 'common/setup';
 import {
   saveAsSVG, choose, maprange, radiansToDegrees, clipBounds, processOptions
 } from 'common/utils';
@@ -349,7 +349,113 @@ async function stringLights_v2() {
   // text(dawningOfANewDay, new Point(width / 2, height / 2 + 50), 'November 7, 2020', { fontSize: 34, pen: silver });
   // text(dawningOfANewDay, new Point(width / 2, height / 2 + 100), 'Rupert, Vermont', { fontSize: 34, pen: silver });
 }
-stringLights_v2();
+// stringLights_v2();
+
+async function stringLights_v3() {
+  const PAPER_SIZE = WEDDING_SAVE_THE_DATE.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  canvas.style = `${canvas.style}; background-color: #090D3D;`;
+  const pacifico = await loadOpentype('src/fonts/Pacifico/Pacifico-Regular.ttf');
+  const amanticsc = await loadOpentype('src/fonts/Amatic_SC/AmaticSC-Bold.ttf');
+  const dawningOfANewDay = await loadOpentype('src/fonts/Dawning_of_a_New_Day/DawningofaNewDay-Regular.ttf');
+  const sacramento = await loadOpentype('src/fonts/Sacramento/Sacramento-Regular.ttf');
+
+  const marginX = 10;
+  const l1start = new Point(marginX, height / 6 - 50);
+  const l1end = new Point(width - marginX, height / 6 - 40);
+  const l1droop = l1start.add(l1end.subtract(l1start).divide(2)).add(0, 20);
+  stringLight(
+    10, 
+    [
+      l1start, 
+      l1droop.subtract(80, 0),
+      l1droop.add(80, 0),
+      l1end
+    ]
+  );
+
+  const l2start = new Point(marginX, height / 6 - 40);
+  const l2end = new Point(width - marginX, height / 6 + 30);
+  const l2droop = l2start.add(l2end.subtract(l2start).divide(2)).add(20, 40);
+  stringLight(11, 
+    [
+      l2start,
+      l2droop.subtract(90, 15),
+      l2droop.add(100, 0),
+      l2end
+    ]
+  );
+  
+  const l3start = new Point(marginX, height / 6 + 30);
+  const l3end = new Point(width - marginX, height / 6 - 40);
+  const l3droop = l3start.add(l3end.subtract(l3start).divide(2)).add(20, 40);
+  stringLight(11,
+    [
+      l3start,
+      l3droop.add(-90, 15),
+      l3droop.add(100, 0),
+      l3end
+    ]
+  );
+
+  const silverOutline = pens.UNIBALL_SILVER;
+  const silverFilled = pens.UNIBALL_SILVER_FILLED;
+  const gold = pens.GELLY_ROLL_METALLIC_GOLD;
+
+  // text(pacifico, new Point(width / 4, height / 2 + 10), 'Save the Date', { fontSize: 54, pen: silverFilled });
+  // text(amanticsc, new Point(width / 6, height / 2 + 60), 'Jacqueline', { fontSize: 36, pen: silverOutline });
+  // text(amanticsc, new Point(width / 6, height / 2 + 105), '+ Sean', { fontSize: 36, pen: silverOutline });
+  // text(amanticsc, new Point(width * 7 / 12, height / 2 + 60), 'November 7, 2020', { fontSize: 36, pen: silverOutline });
+  // text(amanticsc, new Point(width * 7 / 12, height / 2 + 105), 'Rupert, Vermont', { fontSize: 36, pen: silverOutline });
+  // text(amanticsc, new Point(width / 5, height * 3 / 4 + 60), 'theknot.com/us/jacqui-walter-and-sean-mullen', { fontSize: 24, pen: gold });
+
+  textp(pacifico, new Point(width / 2, height / 2 - 20), 'Save the Date', { fontSize: 54, pen: silverFilled });
+  textp(amanticsc, new Point(width / 4, height / 2 + 40), 'Jacqueline', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width / 4, height / 2 + 85), '+ Sean', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width * 3 / 4 - 15, height / 2 + 40), 'November 7, 2020', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width * 3 / 4 - 15, height / 2 + 85), 'Rupert, Vermont', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width / 2, height * 3 / 4 + 40), 'theknot.com/us/jacqui-walter-and-sean-mullen', { fontSize: 24, pen: gold });
+
+  function stringLight(nLights = 10, segments) {
+    const droopY = random(15, 25);
+    const droopX = random(-50, 50);
+    // segments.forEach(point => new Path.Circle({
+    //   fillColor: 'red',
+    //   radius: 4,
+    //   center: point
+    // }));
+    const string = pens.withPen(pens.UNIBALL_SILVER, ({ color }) => {
+      const string = new Path({
+        segments,
+        strokeWidth: 2,
+        strokeColor: color
+      });
+      string.smooth();
+      return string;
+    })
+
+    const spacing = string.length / (nLights + 1);
+    const iLine = new Path.Line({
+      from: [marginX, 0],
+      to: [marginX, height]
+    });
+    const lights = [];
+    for (let i = 0; i < nLights; i++) {
+      const step = iLine.translate(spacing, 0);
+      const intersections = string.getIntersections(step);
+      if (intersections.length) {
+        const intersection = intersections[0].point.add(random(-5, 5), random(-5, 5));
+        const light = makeLight(intersection);
+        lights.push(light);
+      }
+    }
+    iLine.remove();
+  }
+}
+stringLights_v3();
 
 function stringLight(nLights = 10, width, height) {
   const marginX = 10;
@@ -420,6 +526,18 @@ function text(font, point, content, { fontSize = 12, pen = pens.BLACK } = {}) {
     path.strokeColor = color;
     path.fillColor = color;
     // path.position = point;
+    return path;
+  });
+}
+
+// Places the text when creating the compondPath rather than the svg data.
+function textp(font, point, content, { fontSize = 12, pen = pens.BLACK } = {}) {
+  const pathData = font.getPath(content, 0, 0, fontSize).toPathData();
+  return pens.withPen(pen, ({ color }) => {
+    const path = new paper.CompoundPath(pathData);
+    path.strokeColor = color;
+    path.fillColor = color;
+    path.position = point;
     return path;
   });
 }

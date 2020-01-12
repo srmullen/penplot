@@ -1,4 +1,4 @@
-import { GPU } from 'gpu.js';
+// import { IKernelFunctionThis } from 'gpu.js'
 
 const gridSize = 16;
 const grid = [];
@@ -108,6 +108,11 @@ class ValueNoise3d {
 }
 
 export function createValueNoise3dKernel(gpu) {
+  // const grid = [];
+  // for (let i = 0; i < Math.pow(gridSize, 3); i++) {
+  //   grid.push(Math.random());
+  // }
+
   gpu.addFunction(function interpolate(from, to, val) {
     const nval = val * val * (3 - 2 * val);
     return from + nval * (to - from);
@@ -131,10 +136,10 @@ export function createValueNoise3dKernel(gpu) {
     ];
   });
 
-  return gpu.createKernel(function(a, b, rate, zInp) {
-    const x = rate * this.thread.x;
-    const y = rate * this.thread.y;
-    const z = rate * zInp
+  gpu.addFunction(function noise(a, b, x, y, z) {
+    // const x = rate * this.thread.x;
+    // const y = rate * this.thread.y;
+    // const z = rate * zInp
     const xpix = Math.floor(x) % b;
     const ypix = Math.floor(y) % b;
     const zpix = Math.floor(z) % b;
@@ -161,11 +166,44 @@ export function createValueNoise3dKernel(gpu) {
     const bcd = interpolate(bBottomLeft, bBottomRight, xoff);
     const backVal = interpolate(bab, bcd, yoff);
 
-    const val = interpolate(frontVal, backVal, zoff);
-    this.color(val, val, val, 1);
+    return interpolate(frontVal, backVal, zoff);
+  });
+
+  const kernel = gpu.createKernel(function (a, b, rates, zInp) {
+    const rx = rates[0] * this.thread.x;
+    const ry = rates[1] * this.thread.y;
+    const rz = rates[2] * zInp;
+    const red = noise(a, b, rx, ry, rz);
+
+    const gx = rates[3] * this.thread.x;
+    const gy = rates[4] * this.thread.y;
+    const gz = rates[5] * zInp;
+    const green = noise(a, b, gx, gy, gz);
+
+    const bx = rates[6] * this.thread.x;
+    const by = rates[7] * this.thread.y;
+    const bz = rates[8] * zInp;
+    const blue = noise(a, b, bx, by, bz);
+    
+    this.color(red, green, blue, 1);
+    return red;
   }, {
-    output: [750, 750],
-    graphical: true,
     returnType: 'Float'
   });
+
+  return kernel;
+}
+
+
+export function createValueNoise3dFn(gpu, gridSize) {
+  const grid = [];
+  for (let i = 0; i < Math.pow(gridSize, 3); i++) {
+    grid.push(Math.random());
+  }
+
+  const kernel = createValueNoise3dKernel(gpu).setOutput([750, 750]).setGraphical(true);
+
+  return (rate, zInp) => {
+    return kernel(grid, gridSize, rate, zInp);
+  }
 }

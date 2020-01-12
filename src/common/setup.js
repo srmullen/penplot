@@ -11,7 +11,12 @@ export const STRATH_SMALL = {
 export const ARTIST_SKETCH = {
   landscape: [765, 459],
   portrait: [459, 765]
-}
+};
+
+export const WEDDING_SAVE_THE_DATE = {
+  landscape: [548, 371],
+  portrait: [371, 548]
+};
 
 export function createCanvas ([width, height], {hidden = false, id} = {}) {
   const root = document.getElementById('root');
