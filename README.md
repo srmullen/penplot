@@ -9,3 +9,5 @@ IDEAS
 - il_cubo: Could make cubes appear to be views from different angles.
 - il_cubo: conway's game of life.
 - game of life where different times are drawn overlapping but in different colors.
+- Intersection aggregate
+- Visual Quine - Print the file that created it.

@@ -9,8 +9,9 @@ import {
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { GPU } from 'gpu.js';
-import { createValueNoise2dKernel, createValueNoise3dKernel, createValueNoise3dFn } from './valueNoiseGPU';
+import { createValueNoise2dKernel, createValueNoise2dFn, createValueNoise3dKernel, createValueNoise3dFn } from './valueNoiseGPU';
 import { renderAnimation, recordAnimation } from './utils';
+import * as perlin from './perlinNoiseGPU';
 
 const PAPER_SIZE = STRATH_SMALL.landscape;
 const [width, height] = PAPER_SIZE;
@@ -440,13 +441,13 @@ function renderPrecomputedCpuNoise() {
     requestAnimationFrame(animate2d);
   }
 
-// const noiseArr = create2dNoise();
-const noiseArr = create3dNoise();
+  // const noiseArr = create2dNoise();
+  const noiseArr = create3dNoise();
 
-// renderNoise2d(noiseArr[0]);
-// renderNoise3d(noiseArr, frame);
-// animate();
-animate2d()
+  // renderNoise2d(noiseArr[0]);
+  // renderNoise3d(noiseArr, frame);
+  // animate();
+  animate2d()
 }
 // renderPrecomputedCpuNoise();
 
@@ -527,16 +528,25 @@ function valueNoise2dExample() {
   });
 
   const gridSize = 100;
-  const grid = [];
+  const valueNoiseKernel = createValueNoise2dFn(gpu, gridSize);
 
-  for (let i = 0; i < Math.pow(gridSize, 2); i++) {
-    grid.push(Math.random());
-  }
-  const valueNoiseKernel = createValueNoise2dKernel(gpu);
+  // const rates = [
+  //   random(0.0001, 0.05), random(0.0001, 0.05),
+  //   random(0.0001, 0.05), random(0.0001, 0.05),
+  //   random(0.0001, 0.05), random(0.0001, 0.05)
+  // ];
 
-  renderAnimation((step) => valueNoiseKernel(grid, gridSize, step * 0.01), Infinity);
+  const rates = [
+    0.001, 0.05,
+    0.05, 0.001,
+    // 0, 0,
+    0.05, 0.05
+  ];
+
+  console.log(rates);
+
+  renderAnimation((step) => valueNoiseKernel(rates.map(rate => rate * step)), Infinity);
 }
-// valueNoise2dExample();
 
 function valueNoise3dAnimatedExample() {
   const gpu = new GPU({
@@ -544,7 +554,7 @@ function valueNoise3dAnimatedExample() {
     mode: 'webgl2'
   });
 
-  const gridSize = 100;
+  const gridSize = 160;
 
   const valueNoiseKernel = createValueNoise3dFn(gpu, gridSize);
   const rates = [
@@ -557,14 +567,19 @@ function valueNoise3dAnimatedExample() {
   //   0.01, 0.005, 0.03,
   //   0.01, 0.05, 0.03,
   //   0.001, 0.005, 0.03
-  // ]
+  // ];
+  // const rates = [
+  //   0.01, 0.01, 0.01,
+  //   0.01, 0.01, 0.01,
+  //   0.01, 0.01, 0.01,
+  // ];
+
+  console.log(rates);
+
   renderAnimation((step) => {
-    valueNoiseKernel(
-      rates, step);
+    valueNoiseKernel(rates, step);
   }, Infinity);
 }
-valueNoise3dAnimatedExample();
-
 
 function perlinNoise2dExample() {
   const gpu = new GPU({
@@ -573,18 +588,96 @@ function perlinNoise2dExample() {
   });
 
   const gridSize = 100;
-  const grid = [];
-  for (let i = 0; i < Math.pow(gridSize, 3); i++) {
-    grid.push(Math.random());
-  }
+  const noiseKernel = perlin.createPerlinNoise2dFn(gpu, gridSize);
 
-  const valueNoiseKernel = createValueNoise3dKernel(gpu, grid, gridSize);
+  const rates = [
+    random(0.0001, 0.05), random(0.0001, 0.05),
+    random(0.0001, 0.05), random(0.0001, 0.05),
+    random(0.0001, 0.05), random(0.0001, 0.05)
+  ];
+
+  // const rates = [
+  //   0.01, 0.02,
+  //   0.02, 0.01,
+  //   0.01, 0.01
+  // ];
+
+  // const rates = [
+  //   0.03691860118595863, 0.042879694061507045, 
+  //   0.034715041754168625, 0.03386023422643833, 
+  //   0.03717301447533125, 0.04293437783217827
+  // ];
+
+  console.log(rates);
+  console.log(noiseKernel(rates));
+  // renderAnimation((step) => noiseKernel(rates.map(rate => rate * step)), 1000);
+}
+
+function perlinNoise3dAnimatedExample() {
+  const gpu = new GPU({
+    canvas,
+    mode: 'webgl2'
+  });
+
+  const gridSize = 100;
+
+  const noiseKernel = perlin.createPerlinNoise3dFn(gpu, gridSize);
+  const rates = [
+    random(0.0001, 0.05), random(0.0001, 0.05), random(0.0001, 0.05),
+    random(0.0001, 0.05), random(0.0001, 0.05), random(0.0001, 0.05),
+    random(0.0001, 0.05), random(0.0001, 0.05), random(0.0001, 0.05),
+  ];
+
+  // const rates = [
+  //   0.01, 0.005, 0.03,
+  //   0.01, 0.05, 0.03,
+  //   0.001, 0.005, 0.03
+  // ];
+  // const rates = [
+  //   0.01, 0.01, 0.01,
+  //   0.01, 0.01, 0.01,
+  //   0.01, 0.01, 0.01,
+  // ];
+
+  // const rates = [
+  //   0.012129007947402043, 0.04345057744305375, 0.03128423715028822, 
+  //   0.008908677071170224, 0.046849207973481855, 0.03510120232623019, 
+  //   0.011930106429821922, 0.0349164444066763, 0.04205799126781748
+  // ];
+
+  console.log(rates);
+
   renderAnimation((step) => {
-    valueNoiseKernel(
-      [
-        0.005, 0.005, 0.005,
-        0.005, 0.005, 0.005,
-        0.005, 0.005, 0.005
-      ], step);
+    noiseKernel(rates, step);
   }, Infinity);
 }
+
+function marchingSquares () {
+  const gpu = new GPU({
+    canvas,
+    mode: 'webgl2'
+  });
+
+  const gridSize = 100;
+
+  const grid = [];
+  for (let i = 0; i < Math.pow(gridSize, 2); i++) {
+    // Create a flat array to better work with gpu.js
+    // Need to adjust accordingly when getting the gradients.
+    const normal = randomNormal2d();
+    grid.push(normal[0]);
+    grid.push(normal[1]);
+  }
+  perlin.addPerlinNoise2d(gpu);
+  const kernel = perlin.oneChannel2dKernel(gpu);
+
+  const image = kernel(grid, gridSize, [0.012, 0.012]);
+  console.log(image);
+}
+
+// valueNoise2dExample();
+// valueNoise3dAnimatedExample();
+// perlinNoise2dExample();
+// perlinNoise3dAnimatedExample();
+
+// marchingSquares();

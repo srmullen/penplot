@@ -14,8 +14,8 @@ export const ARTIST_SKETCH = {
 };
 
 export const WEDDING_SAVE_THE_DATE = {
-  landscape: [548, 371],
-  portrait: [371, 548]
+  landscape: [564, 406],
+  portrait: [406, 564]
 };
 
 export function createCanvas ([width, height], {hidden = false, id} = {}) {

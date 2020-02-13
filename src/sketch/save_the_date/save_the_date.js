@@ -357,13 +357,13 @@ async function stringLights_v3() {
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
 
-  canvas.style = `${canvas.style}; background-color: #090D3D;`;
+  // canvas.style = `${canvas.style}; background-color: #090D3D;`;
   const pacifico = await loadOpentype('src/fonts/Pacifico/Pacifico-Regular.ttf');
   const amanticsc = await loadOpentype('src/fonts/Amatic_SC/AmaticSC-Bold.ttf');
   const dawningOfANewDay = await loadOpentype('src/fonts/Dawning_of_a_New_Day/DawningofaNewDay-Regular.ttf');
   const sacramento = await loadOpentype('src/fonts/Sacramento/Sacramento-Regular.ttf');
 
-  const marginX = 10;
+  const marginX = 0;
   const l1start = new Point(marginX, height / 6 - 50);
   const l1end = new Point(width - marginX, height / 6 - 40);
   const l1droop = l1start.add(l1end.subtract(l1start).divide(2)).add(0, 20);
@@ -413,11 +413,11 @@ async function stringLights_v3() {
   // text(amanticsc, new Point(width / 5, height * 3 / 4 + 60), 'theknot.com/us/jacqui-walter-and-sean-mullen', { fontSize: 24, pen: gold });
 
   textp(pacifico, new Point(width / 2, height / 2 - 20), 'Save the Date', { fontSize: 54, pen: silverFilled });
-  textp(amanticsc, new Point(width / 4, height / 2 + 40), 'Jacqueline', { fontSize: 36, pen: silverOutline });
-  textp(amanticsc, new Point(width / 4, height / 2 + 85), '+ Sean', { fontSize: 36, pen: silverOutline });
-  textp(amanticsc, new Point(width * 3 / 4 - 15, height / 2 + 40), 'November 7, 2020', { fontSize: 36, pen: silverOutline });
-  textp(amanticsc, new Point(width * 3 / 4 - 15, height / 2 + 85), 'Rupert, Vermont', { fontSize: 36, pen: silverOutline });
-  textp(amanticsc, new Point(width / 2, height * 3 / 4 + 40), 'theknot.com/us/jacqui-walter-and-sean-mullen', { fontSize: 24, pen: gold });
+  textp(amanticsc, new Point(width / 4, height / 2 + 50), 'Jacqueline', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width / 4, height / 2 + 95), '+ Sean', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width * 3 / 4 - 15, height / 2 + 50), 'November 7, 2020', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width * 3 / 4 - 15, height / 2 + 95), 'Rupert, Vermont', { fontSize: 36, pen: silverOutline });
+  textp(amanticsc, new Point(width / 2, height * 3 / 4 + 60), 'theknot.com/us/jacqueline-sean', { fontSize: 24, pen: gold });
 
   function stringLight(nLights = 10, segments) {
     const droopY = random(15, 25);

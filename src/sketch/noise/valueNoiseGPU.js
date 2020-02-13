@@ -1,5 +1,3 @@
-// import { IKernelFunctionThis } from 'gpu.js'
-
 const gridSize = 16;
 const grid = [];
 
@@ -17,14 +15,7 @@ export function createValueNoise2dKernel(gpu) {
     return from + nval * (to - from);
   });
 
-  /**
-   * {a} - [Number] grid
-   * {b} - Number  gridSize
-   * {rate} - Number - noise rate
-   */
-  return gpu.createKernel(function (a, b, rate) {
-    const x = rate * this.thread.x;
-    const y = rate * this.thread.y;
+  gpu.addFunction(function noise(a, b, x, y) {
     const xpix = Math.floor(x) % b;
     const ypix = Math.floor(y) % b;
     const xoff = x - Math.floor(x);
@@ -35,13 +26,45 @@ export function createValueNoise2dKernel(gpu) {
     const bottomLeft = a[(ypix + 1) * b + xpix];
     const ab = interpolate(topLeft, topRight, xoff);
     const cd = interpolate(bottomLeft, bottomRight, xoff);
-    const val = interpolate(ab, cd, yoff);
-    this.color(val, val, val, 1);
+    return interpolate(ab, cd, yoff);
+  });
+
+  /**
+   * {a} - [Number] grid
+   * {b} - Number  gridSize
+   * {rate} - Number[] - noise rates
+   */
+  return gpu.createKernel(function (a, b, rates) {
+    const rx = rates[0] * this.thread.x;
+    const ry = rates[1] * this.thread.y;
+    const red = noise(a, b, rx, ry);
+
+    const gx = rates[2] * this.thread.x;
+    const gy = rates[3] * this.thread.y;
+    const green = noise(a, b, gx, gy);
+
+    const bx = rates[4] * this.thread.x;
+    const by = rates[5] * this.thread.y;
+    const blue = noise(a, b, bx, by);
+    this.color(red, green, blue, 1);
   }, {
     output: [750, 750],
     graphical: true,
     returnType: 'Float'
   });
+}
+
+export function createValueNoise2dFn(gpu, gridSize) {
+  const grid = [];
+  for (let i = 0; i < Math.pow(gridSize, 2); i++) {
+    grid.push(Math.random());
+  }
+
+  const kernel = createValueNoise2dKernel(gpu).setOutput([750, 750]).setGraphical(true);
+
+  return (rate) => {
+    return kernel(grid, gridSize, rate);
+  }
 }
 
 class ValueNoise3d {
@@ -108,11 +131,6 @@ class ValueNoise3d {
 }
 
 export function createValueNoise3dKernel(gpu) {
-  // const grid = [];
-  // for (let i = 0; i < Math.pow(gridSize, 3); i++) {
-  //   grid.push(Math.random());
-  // }
-
   gpu.addFunction(function interpolate(from, to, val) {
     const nval = val * val * (3 - 2 * val);
     return from + nval * (to - from);

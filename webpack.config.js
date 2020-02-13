@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['save_the_date', 'maps', 'noise', 'intersection_aggregate'];
+const sketches = ['polygon_transformations', 'maps', 'noise', 'intersection_aggregate'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};
