@@ -47,6 +47,7 @@
     "upng-js": "^2.1.0",
     "us-atlas": "^3.0.0",
     "uuid": "^3.3.2",
+    "voronoi": "^1.0.0",
     "webfontloader": "^1.6.28",
     "webpack": "^4.25.1",
     "webpack-cli": "^3.1.2",

@@ -449,3 +449,489 @@ export function* bitonic(exchange, compare, list) {
     }
   }
 }
+
+export function quad(cmp, list) {
+
+  swap(list);
+
+  const nmemb = list.length;
+  const tmp = [];
+  let offset, block = 4;
+  let pta = 0;
+  let pts = 0;
+  let c, c_max, d, d_max, end;
+
+  // end = array;
+  end = nmemb;
+
+  while (block < nmemb) {
+    offset = 0;
+    console.log('new block', block);
+
+    while (offset + block < nmemb) {
+      // pta = array;
+      pta += offset;
+
+      d_max = pta + block;
+
+      if (cmp(list[d_max - 1], list[d_max]) <= 0) {
+        if (offset + block * 3 < nmemb) {
+          d_max = pta + block * 3;
+
+          if (cmp(list[d_max - 1], list[d_max]) <= 0) {
+            d_max = pta + block * 2;
+
+            if (cmp(list[d_max - 1], list[d_max]) <= 0) {
+              offset += block * 4;
+              continue;
+            }
+            pts = 0;
+
+            c = pta;
+            c_max = pta + block * 2;
+            d = c_max;
+            d_max = offset + block * 4 <= nmemb ? d + block * 2 : end;
+
+            while (c < c_max) {
+              tmp[pts++] = list[c++];
+            }
+
+            while (d < d_max) {
+              tmp[pts++] = list[d++];
+            }
+
+            step3();
+          }
+          pts = 0;
+
+          c = pta;
+          c_max = pta + block * 2;
+
+          while (c < c_max) {
+            tmp[pts++] = list[c++];
+          }
+
+          step2();
+        }
+        else if (offset + block * 2 < nmemb) {
+          d_max = pta + block * 2;
+
+          if (cmp(list[d_max - 1], list[d_max]) <= 0) {
+            offset += block * 4;
+            continue;
+          }
+          pts = 0;
+
+          c = pta;
+          c_max = pta + block * 2;
+
+          while (c < c_max) {
+            tmp[pts++] = list[c++];
+          }
+
+          step2();
+        }
+        else {
+          offset += block * 4;
+          continue;
+        }
+      }
+
+      // step1:
+      console.log('step1');
+      pts = 0;
+
+      c = pta;
+      c_max = pta + block;
+
+      d = c_max;
+      d_max = offset + block * 2 <= nmemb ? d + block : end;
+
+      if (cmp(list[c_max - 1], list[d_max - 1]) <= 0) {
+        while (c < c_max) {
+          while (cmp(list[c], list[d]) > 0) {
+						tmp[pts++] = list[d++];
+          }
+					tmp[pts++] = list[c++];
+        }
+        while (d < d_max)
+					tmp[pts++] = list[d++];
+      }
+      else if (cmp(list[c], list[d_max - 1]) > 0) {
+        while (d < d_max) {
+          tmp[pts++] = list[d++];
+        }
+
+        while (c < c_max) {
+          tmp[pts++] = list[c++];
+        }
+      }
+      else {
+        while (d < d_max) {
+          while (cmp(list[c], list[d]) <= 0) {
+						tmp[pts++] = list[c++];
+          }
+					tmp[pts++] = list[d++];
+        }
+
+        while (c < c_max) {
+					tmp[pts++] = list[c++];
+        }
+      }
+      step2()
+
+      function step2() {
+        console.log('step2');
+        if (offset + block * 2 < nmemb) {
+          c = pta + block * 2;
+
+          if (offset + block * 3 < nmemb) {
+            c_max = c + block;
+            d = c_max;
+            d_max = offset + block * 4 <= nmemb ? d + block : end;
+
+            if (cmp(list[c_max - 1], list[d_max - 1]) <= 0) {
+              while (c < c_max) {
+                while (cmp(list[c], list[d]) > 0) {
+								  tmp[pts++] = list[d++];
+                }
+                tmp[pts++] = list[c++];
+              }
+              while (d < d_max) {
+                tmp[pts++] = list[d++];
+              }
+            }
+            else if (cmp(list[c], list[d_max - 1]) > 0) {
+              while (d < d_max) {
+                tmp[pts++] = list[d++];
+              }
+              while (c < c_max) {
+                tmp[pts++] = list[c++];
+              }
+            }
+            else {
+              while (d < d_max) {
+                while (cmp(list[c], list[d]) <= 0) {
+								 tmp[pts++] = list[c++];
+                }
+							  tmp[pts++] = list[d++];
+              }
+              while (c < c_max) {
+                tmp[pts++] = list[c++];
+              }
+            }
+          }
+          else {
+            while (c < end) {
+              tmp[pts++] = list[c++];
+            }
+          }
+        }
+        step3();
+      }
+
+      
+
+      // This seems to put the temp array back in the list.
+      // Assumtion based on pta being on lefthand side expression.
+      // Probably need to make changes to c and d variables.
+      function step3() {
+        console.log('step3');
+        pts = swap;
+
+        c = pts;
+
+        if (offset + block * 2 < nmemb) {
+          c_max = c + block * 2;
+
+          d = c_max;
+          d_max = offset + block * 4 <= nmemb ? d + block * 2 : pts + nmemb - offset;
+
+          if (cmp(tmp[c_max - 1], tmp[d_max - 1]) <= 0) {
+            while (c < c_max) {
+              while (cmp(tmp[c], tmp[d]) > 0) {
+							  list[pta++] = tmp[d++];
+              }
+						  list[pta++] = tmp[c++];
+            }
+            while (d < d_max) {
+              list[pta++] = tmp[d++];
+            }
+          }
+          else if (cmp(tmp[c], tmp[d_max - 1]) > 0) {
+            while (d < d_max) {
+              list[pta++] = tmp[d++];
+            }
+            while (c < c_max) {
+              list[pta++] = tmp[c++];
+            }
+          }
+          else {
+            while (d < d_max) {
+              while (cmp(tmp[d], tmp[c]) > 0) {
+							  list[pta++] = list[c++];
+              }
+						  list[pta++] = tmp[d++];
+            }
+            while (c < c_max) {
+              list[pta++] = tmp[c++];
+            }
+          }
+        }
+        else {
+          d_max = pts + nmemb - offset;
+
+          while (c < d_max) {
+            list[pta++] = tmp[c++];
+          }
+        }
+        offset += block * 4;
+      }
+      block *= 4;
+    }
+  }
+
+  function swap(arr) {
+    for (let i = 0; i + 4 <= arr.length; i += 4) {
+      let tmp = [];
+      if (arr[i + 0] > arr[i + 1]) {
+        tmp[0] = arr[i + 1];
+        tmp[1] = arr[i + 0];
+      } else {
+        tmp[0] = arr[i + 0];
+        tmp[1] = arr[i + 1];
+      }
+
+      if (arr[i + 2] > arr[i + 3]) {
+        tmp[2] = arr[i + 3];
+        tmp[3] = arr[i + 2];
+      } else {
+        tmp[2] = arr[i + 2];
+        tmp[3] = arr[i + 3];
+      }
+
+      if (tmp[1] <= tmp[2]) {
+        arr[i + 0] = tmp[0];
+        arr[i + 1] = tmp[1];
+        arr[i + 2] = tmp[2];
+        arr[i + 3] = tmp[3];
+      } else if (tmp[0] > tmp[3]) {
+        arr[i + 0] = tmp[2];
+        arr[i + 1] = tmp[3];
+        arr[i + 2] = tmp[0];
+        arr[i + 3] = tmp[1];
+      } else {
+        if (tmp[0] <= tmp[2]) {
+          arr[i + 0] = tmp[0];
+          arr[i + 1] = tmp[2];
+        } else {
+          arr[i + 0] = tmp[2]
+          arr[i + 1] = tmp[0]
+        }
+
+        if (tmp[1] <= tmp[3]) {
+          arr[i + 2] = tmp[1];
+          arr[i + 3] = tmp[3];
+        } else {
+          arr[i + 2] = tmp[3];
+          arr[i + 3] = tmp[1];
+        }
+      }
+    }
+  }
+}
+
+// export function quad(compare, list) {
+//   const tmp = [];
+//   let offset;
+//   let block = 4;
+//   const nmemb = list.length;
+
+//   swap(list);
+
+//   while (block < nmemb) {
+//     offset = 0;
+
+//     while (offset + block < nmemb) {
+//       const pta = offset;
+
+//       let dmax = pta + block;
+
+//       if (compare(list[dmax-1], list[dmax]) <= 0) {
+//         if (offset + block * 3 < nmemb) {
+//           dmax = pta + block * 3;
+//           if (compare(list[dmax - 1], list[dmax]) <= 0) {
+//             dmax = pta + block * 2;
+//             if (compare(list[dmax-1], list[dmax]) <= 0) {
+//               offset += block * 4;
+//               continue;
+//             }
+//             const c = pta;
+//             const cmax = pta + block * 2;
+//             const d = cmax;
+//             dmax = offset + block * 4 <= nmemb ? d + block * 2 : nmemb;
+//             for (let i = c; i < cmax; i++) {
+//               tmp[i] = list[i];
+//             }
+//             for (let i = d; i < dmax; i++) {
+//               tmp[i] = list[i];
+//             }
+//             step3();
+//           }
+//           const c = pta;
+//           const cmax = pta + block * 2;
+//           const d = cmax;
+//           dmax = offset + block * 4 <= nmemb ? d + block * 2 : nmemb;
+//           for (let i = c; i < cmax; i++) {
+//             tmp[i] = list[i];
+//           }
+//           step2();
+//         } else if (offset + block * 2 < nmemb) {
+//           dmax = pta + block * 2;
+//           if (compare(list[dmax-1], list[dmax]) <= 0) {
+//             offset += block * 4;
+//             continue;
+//           }
+//           const c = pta;
+//           const cmax = pta + block * 2;
+//           for (let i = c; c < cmax; i++) {
+//             tmp[i] = list[i];
+//           }
+//           step2();
+//         } else {
+//           offset += block * 4;
+//           continue
+//         }
+//       }
+
+//       // Step 1
+
+//       const c = pta;
+//       const cmax = pta + block;
+//       const d = cmax;
+//       dmax = offset + block * 2 <= nmemb ? d + block : nmemb;
+//       if (compare(list[cmax-1], list[dmax-1]) <= 0) {
+//         for (let i = c; i < cmax; i++) {
+//           for (let j = d; compare(list[i], list[j]) > 0; j++) {
+//             tmp[j] = list[j]
+//           }
+//           tmp[i] = list[i];
+//         }
+//       } else if (compare(list[c], list[dmax-1]) > 0) {
+//         for (let i = d; i < dmax; i++) {
+//           tmp[i] = list[i];
+//         }
+//         for (let i = c; i < cmax; i++) {
+//           tmp[i] = list[i];
+//         }
+//       } else {
+//         for (let i = d; i < dmax; i++) { // line 632
+//           for (let j = c; compare(list[j], list[i]) <= 0; j++) {
+//             tmp[j] = list[j]
+//           }
+//           tmp[i] = list[i];
+//         }
+//         // Possibly incorrect. c might be updated in above step.
+//         for (let i = c; i < cmax; i++) { // line 641
+//           tmp[i] = list[i]
+//         }
+//       }
+
+//       // Step 2
+
+//       // Step 3
+
+//       block *= 4;
+//     }
+//   }
+
+//   function step2() {
+//     if (offset + block * 2 < nmemb) {
+//       const c = pta + block * 2;
+//       if (offset + block * 3 < nmemb) {
+//         const cmax = c + block;
+//         const d = cmax;
+//         const dmax = offset + block * 4 <= nmemb ? d + block : nmemb;
+//         if (compare(list[cmax-1], list[dmax-1]) <= 0) {
+//           for (let i = c; i < cmax; i++) {
+//             for (; compare(list[i], list[d]) > 0; d++) {
+//               tmp[d] = list[d];
+//             }
+//             tmp[i] = list[i];
+//           }
+//           for (; d < dmax; d++) {
+//             tmp[d] = list[d];
+//           }
+//         } else if (compare(list[c], list[dmax-1]) > 0) {
+//           while (d < dmax) {
+//             tmp[d] = list[d];
+//             d++;
+//           }
+//           while (c < cmax) {
+//             tmp[c] = list[c];
+//             c++;
+//           }
+//         } else {
+//           while (d < dmax) {
+//             while (compare(list[c], list[d]) <= 0) {
+//               tmp[c] = 
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+
+//   function step3() { }
+
+//   function swap(arr) {
+//     for (let i = 0; i + 4 <= arr.length; i += 4) {
+//       let tmp = [];
+//       if (arr[i+0] > arr[i+1]) {
+//         tmp[0] = arr[i+1];
+//         tmp[1] = arr[i+0];
+//       } else {
+//         tmp[0] = arr[i+0];
+//         tmp[1] = arr[i+1];
+//       }
+
+//       if (arr[i+2] > arr[i+3]) {
+//         tmp[2] = arr[i+3];
+//         tmp[3] = arr[i+2];
+//       } else {
+//         tmp[2] = arr[i+2];
+//         tmp[3] = arr[i+3];
+//       }
+
+//       if (tmp[1] <= tmp[2]) {
+//         arr[i+0] = tmp[0];
+//         arr[i+1] = tmp[1];
+//         arr[i+2] = tmp[2];
+//         arr[i+3] = tmp[3];
+//       } else if (tmp[0] > tmp[3]) {
+//         arr[i+0] = tmp[2];
+//         arr[i+1] = tmp[3];
+//         arr[i+2] = tmp[0];
+//         arr[i+3] = tmp[1];
+//       } else {
+//         if (tmp[0] <= tmp[2]) {
+//           arr[i+0] = tmp[0];
+//           arr[i+1] = tmp[2];
+//         } else {
+//           arr[i+0] = tmp[2]
+//           arr[i+1] = tmp[0]
+//         }
+
+//         if (tmp[1] <= tmp[3]) {
+//           arr[i+2] = tmp[1];
+//           arr[i+3] = tmp[3];
+//         } else {
+//           arr[i+2] = tmp[3];
+//           arr[i+3] = tmp[1];
+//         }
+//       }
+//     }
+//   }
+
+//   console.log(list);
+// }

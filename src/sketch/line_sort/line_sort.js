@@ -364,6 +364,28 @@ function bitonicSort(items, opts, paperType = STRATH_SMALL) {
   draw(original, sorted, width, height, opts);
 }
 
+function quadSort(items, opts, paperType = STRATH_SMALL) {
+  const PAPER_SIZE = paperType.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const original = items.map(a => a);
+
+  const sortFn = sort.quad;
+  const exchangeFn = exchangeIndices;
+
+  // const sorted = [...sortFn(exchangeFn, bitonicCompare.bind(null, 'val'), items)];
+
+  // sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), [4, 3, 2, 1]);
+  // sortFn([4,3,2,1]);
+  const arr = [4, 5, 3, 1, 6, 2, 8, 7];
+  sortFn(compareNumber, arr);
+  console.log(arr);
+
+  // draw(original, sorted, width, height, opts);
+}
+
 function uniformRandomItems(nLines, palette) {
   const arr = [];
   for (let i = 0; i < nLines; i++) {
@@ -564,8 +586,10 @@ function splitReverse(arr, depth=0) {
 // bitonicSort(uniformRandomItems(100, palettes.palette_hot_and_cold));
 // bitonicSort(repeatItems(25, palettes.palette_rgb3), {}, A4);
 // bitonicSort(reverseItems(20, palettes.palette_large), {}, A4);
-bitonicSort(repeatItems(20, palettes.palette_large), {}, A4);
+// bitonicSort(repeatItems(20, palettes.palette_large), {}, A4);
 // bitonicSort(reverseItems(14, palettes.palette_large), {}, A4);
+
+quadSort(repeatItems(20, palettes.palette_large), {}, A4);
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);
