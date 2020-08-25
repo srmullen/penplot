@@ -8,16 +8,12 @@ import {
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { hatch } from 'common/hatch';
+import please from 'pleasejs';
 
-window.lerp = lerp;
 window.paper = paper;
-// const PAPER_SIZE = A4.landscape;
-const PAPER_SIZE = ARTIST_SKETCH.landscape;
-const [width, height] = PAPER_SIZE;
-const canvas = createCanvas(PAPER_SIZE);
-paper.setup(canvas);
+// math.config({ randomSeed: 100 });
 
-function randomPoints(nPoints, margin = 0) {
+function randomPoints([width, height], nPoints, margin = 0) {
   const points = [];
   for (let i = 0; i < nPoints; i++) {
     points.push(new Point(random(margin, width - margin), random(margin, height - margin)));
@@ -36,17 +32,36 @@ function completeEdge(edge) {
   );
 }
 
-function drawVoronoiEdges(diagram) {
+function drawVoronoiEdges(points, diagram) {
   // Draw Edges
-  diagram.edges.map(edge => {
-    if (completeEdge(edge)) {
-      new Path.Line({
-        from: edge.va,
-        to: edge.vb,
-        strokeColor: 'black'
-      });
+  for (let i = 0; i < points.length; i++) {
+    const point = points[i];
+    const cell = diagram.cells[point.voronoiId];
+    drawEdges(cell);
+  }
+  // diagram.edges.map(edge => {
+  //   if (completeEdge(edge)) {
+  //     new Path.Line({
+  //       from: edge.va,
+  //       to: edge.vb,
+  //       strokeColor: 'black'
+  //     });
+  //   }
+  // });
+}
+
+function drawEdges(cell) {
+  const segments = [];
+  if (cell && cell.halfedges.length > 2) {
+    for (let i = 0; i < cell.halfedges; i++) {
+      segments.push(cell.halfedges[i].getEndpoint());
     }
-  });
+    new Path({
+      segments,
+      closed: true,
+      stroke: 'black'
+    });
+  }
 }
 
 function drawTriangleEdges(diagram) {
@@ -81,21 +96,41 @@ function fillCells(diagram) {
 }
 
 function draw() {
+  const PAPER_SIZE = ARTIST_SKETCH.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const margin = 20;
   const voronoi = new Voronoi();
-  const bbox = { xl: 0, xr: width, yt: 0, yb: height };
-  const points = randomPoints(100);
+  const bbox = { xl: margin, xr: width -margin, yt: margin, yb: height - margin };
+  const points = randomPoints([width, height], 100, margin);
   const diagram = voronoi.compute(points, bbox);
   console.log(diagram);
 
-  // Draw Edges
-  
-  // drawTriangleEdges(diagram);
-  // drawVoronoiEdges(diagram);
+  // diagram.edges.forEach(edge => {
+  //   new Path.Line({
+  //     from: edge.va,
+  //     to: edge.vb,
+  //     strokeColor: 'black'
+  //   });
+  // });
+
+  diagram.cells.forEach(cell => {
+    if (cell && cell.halfedges.length > 2) {
+      const segments = cell.halfedges.map(edge => edge.getEndpoint());
+      const path = new Path({
+        segments,
+        closed: true,
+        fillColor: please.make_color()
+      });
+    }
+  });
 
   // Draw Cell
-  if (diagram) {
-    fillCells(diagram);
-  }
+  // if (diagram) {
+  //   fillCells(diagram);
+  // }
 
   // Draw Points
   points.map((point) => {
@@ -113,6 +148,10 @@ function draw() {
 
 // Two color gradient voronoi
 (() => {
+  const PAPER_SIZE = ARTIST_SKETCH.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
   // Initialize some constants
   const margin = 50;
   const nPoints = 100;
@@ -121,7 +160,7 @@ function draw() {
   // Create a bounding box. Value stand for x-left, x-right, y-top, y-bottom.
   const bbox = { xl: margin, xr: width - margin, yt: margin, yb: height - margin };
   // Create points. Just doing random here. Could use other point placing strategies.
-  const points = randomPoints(nPoints, margin);
+  const points = randomPoints([width, height], nPoints, margin);
   // Compute the voronoi diagram. 
   // This mutates the points array. It adds a voronoiId onto each point so you can get it's associated cell.
   const diagram = voronoi.compute(points, bbox);
@@ -148,7 +187,6 @@ function draw() {
       segments: points,
       closed: true
     });
-    // TODO: Need to write about this hatching algorithm. Create more hatching algos.
     const angle = random(360);
     // const stepSize = (center.x / width) * 5
     const stepSize = lerp(1, 5, center.x / width);
@@ -169,12 +207,16 @@ function draw() {
 
 // Three color gradient voronoi
 (() => {
+  const PAPER_SIZE = ARTIST_SKETCH.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
   // Initialize some constants
   const margin = 50;
   const nPoints = 100;
   const voronoi = new Voronoi();
   const bbox = { xl: margin, xr: width - margin, yt: margin, yb: height - margin };
-  const points = randomPoints(nPoints, margin);
+  const points = randomPoints([width, height], nPoints, margin);
   const diagram = voronoi.compute(points, bbox);
 
   // Need to check the diagram exists because it might not be possible to compute the diagram from the given points.
@@ -214,6 +256,85 @@ function draw() {
       pen: palette[5],
       stepSize: lerp(minStep, maxStep, Math.abs((((center.x - margin)  / (width - margin * 2)) * 2) - 1)),
       angle: angle + 10
+    });
+    path.remove();
+  }
+});
+
+// Three Orbs
+(() => {
+  const PAPER_SIZE = A4.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+  // Initialize some constants
+  const margin = 50;
+  const nPoints = 200;
+  const voronoi = new Voronoi();
+  const bbox = { xl: margin, xr: width - margin, yt: margin, yb: height - margin };
+  const points = randomPoints([width, height], nPoints, margin);
+  const diagram = voronoi.compute(points, bbox);
+
+  const palette = palettes.palette_evening;
+
+  const orbs = [
+    {
+      pen: palette[0],
+      point: new Point(300, 200)
+    }, 
+    { 
+      pen: palette[1],
+      point: new Point(width * 0.80, height * 0.6) 
+    },
+    { 
+      pen: palette[5],
+      point: new Point(width/2, height * 0.75) 
+    }
+  ];
+
+  // orbs.forEach(orb => {
+  //   new Path.Circle({
+  //     fillColor: 'red',
+  //     radius: 10,
+  //     center: orb.point
+  //   });
+  // });
+
+  // Need to check the diagram exists because it might not be possible to compute the diagram from the given points.
+  if (diagram) {
+    for (let i = 0; i < points.length; i++) {
+      const site = points[i];
+      const cell = diagram.cells[site.voronoiId];
+      if (cell && cell.halfedges.length > 2) {
+        const endpoints = cell.halfedges.map(edge => edge.getEndpoint());
+        createPath(endpoints, site);
+      }
+    }
+  }
+
+  function createPath(points, center) {
+    const path = new Path({
+      segments: points,
+      closed: true
+    });
+    const angle = random(360);
+    const minStep = 1;
+    const maxStep = 7;
+    const stepSize = lerp(minStep, maxStep, (center.x - margin) / (width - (margin * 2)));
+
+    const maxDist = 700;
+
+    orbs.forEach((orb, i) => {
+      const dist = orb.point.getDistance(center);
+      let stepSize;
+      if (dist < maxDist) {
+        stepSize = lerp(2, 20, Math.pow((dist / maxDist), 2));
+        hatch(path, {
+          pen: orb.pen,
+          stepSize,
+          angle: angle + i * 10
+        });
+      }
     });
     path.remove();
   }
