@@ -19,6 +19,7 @@
     "ccapture.js": "^1.1.0",
     "color-interpolate": "^1.0.4",
     "color-space": "^1.16.0",
+    "convert-length": "^1.0.1",
     "css-loader": "^3.4.1",
     "dat.gui": "^0.7.3",
     "delaunator": "^3.0.2",
