@@ -104,6 +104,16 @@ export function lerp (start, stop, amt) {
   return amt * (stop - start) + start;
 }
 
+// Cosine interpolation
+export function cerp(from, to, val) {
+  return lerp(from, to, -Math.cos(Math.PI * val) / 2 + 0.5);
+}
+
+// Smooth step interpolation
+export function smoothStep(from, to, val) {
+  return lerp(from, to, val * val * (3 - 2 * val));
+}
+
 export function choose (arr) {
   return arr[randomInt(arr.length)];
 }

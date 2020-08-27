@@ -3,15 +3,22 @@ import Voronoi from 'voronoi';
 import math, { random, randomInt } from 'mathjs';
 import { A4, STRATH_SMALL, ARTIST_SKETCH, createCanvas } from 'common/setup';
 import {
-  saveAsSVG, choose, maprange, radiansToDegrees, clipBounds, processOptions, lerp
+  saveAsSVG, choose, maprange, radiansToDegrees, clipBounds, processOptions, lerp, cerp, smoothStep
 } from 'common/utils';
 import * as pens from 'common/pens';
 import * as palettes from 'common/palettes';
 import { hatch } from 'common/hatch';
 import please from 'pleasejs';
+import paperSizes from 'common/paper_sizes';
+import convert from 'convert-length';
+import relaxationDisplacement from 'common/relaxationDisplacement';
 
 window.paper = paper;
-// math.config({ randomSeed: 100 });
+const seed = randomInt(20000);
+// const seed = 9406;
+// const seed = 3214
+console.log(seed);
+math.config({ randomSeed: seed });
 
 function randomPoints([width, height], nPoints, margin = 0) {
   const points = [];
@@ -334,6 +341,191 @@ function draw() {
           stepSize,
           angle: angle + i * 10
         });
+      }
+    });
+    path.remove();
+  }
+});
+
+
+// Many orbs
+(() => {
+  const paperType = paperSizes['a4'];
+  const dimensions = [paperType.dimensions[1], paperType.dimensions[0]];
+  const PAPER_SIZE = dimensions.map(n => {
+    return convert(n, 'mm', 'px', { pixelsPerInch: 96 }); // 96 is the default based on css spec.
+  });
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+  // Initialize some constants
+  const margin = 50;
+  const nPoints = 300;
+  const voronoi = new Voronoi();
+  const bbox = { xl: margin, xr: width - margin, yt: margin, yb: height - margin };
+  
+  let points = randomPoints([width, height], nPoints, margin);
+  points = relaxationDisplacement(points, { distance: 20 });
+
+  const diagram = voronoi.compute(points, bbox);
+
+  // const palette = palettes.palette_hot_and_cold;
+  const palette = palettes.palette_flowers;
+
+  const orbs = palette.map(pen => {
+    return {
+      pen,
+      point: new Point(
+        random(margin, width - margin),
+        random(margin, height - margin)
+      )
+    }
+  });
+
+  // Need to check the diagram exists because it might not be possible to compute the diagram from the given points.
+  if (diagram) {
+    for (let i = 0; i < points.length; i++) {
+      const site = points[i];
+      const cell = diagram.cells[site.voronoiId];
+      if (cell && cell.halfedges.length > 2) {
+        const endpoints = cell.halfedges.map(edge => edge.getEndpoint());
+        createPath(endpoints, site);
+      }
+    }
+  }
+
+  // orbs.forEach(orb => {
+  //   new Path.Circle({
+  //     fillColor: 'red',
+  //     radius: 10,
+  //     center: orb.point
+  //   });
+  // });
+
+
+  function createPath(points, center) {
+    const path = new Path({
+      segments: points,
+      closed: true
+    });
+    const angle = random(360);
+
+    const maxDist = 300;
+
+    let rotationStep = 0;
+    orbs.forEach((orb, i) => {
+      const dist = orb.point.getDistance(center);
+      let stepSize;
+      if (dist < maxDist) {
+        // stepSize = lerp(2, 20, Math.pow((dist / maxDist), 2));
+        stepSize = smoothStep(2, 10, 1 - (dist / maxDist));
+        hatch(path, {
+          pen: orb.pen,
+          stepSize,
+          angle: angle + rotationStep * 5
+        });
+        rotationStep += 1;
+      }
+    });
+    path.remove();
+  }
+});
+
+// Blooms 2
+(() => {
+  // const paperType = paperSizes['a4'];
+  // const dimensions = [paperType.dimensions[1], paperType.dimensions[0]];
+  const dimensions = [12, 9];
+  const PAPER_SIZE = dimensions.map(n => {
+    return convert(n, 'in', 'px', { pixelsPerInch: 96 }); // 96 is the default based on css spec.
+  });
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+  // Initialize some constants
+  const margin = 50;
+  const nPoints = 2000;
+  const pointDisplacement = 10;
+  const voronoi = new Voronoi();
+  const bbox = { xl: margin, xr: width - margin, yt: margin, yb: height - margin };
+
+  let points = randomPoints([width, height], nPoints, margin);
+  points = relaxationDisplacement(points, { distance: pointDisplacement });
+
+  const diagram = voronoi.compute(points, bbox);
+
+  // const palette = palettes.palette_hot_and_cold;
+  const palette = palettes.palette_flowers;
+  // const palette = [
+  //   pens.STABILO_88_51,
+  //   pens.STABILO_88_50,
+  //   pens.STABILO_88_44
+  // ];
+
+  // points.map(point => {
+  //   new Path.Circle({
+  //     center: point,
+  //     radius: 2,
+  //     fillColor: 'red'
+  //   });
+  // });
+
+  let orbPoints = relaxationDisplacement(
+    randomPoints([width, height], 15, margin),
+    { distance: 150, stepSize: 10 }
+  );
+
+  const orbs = orbPoints.map((point, i) => {
+    return {
+      pen: palette[i % palette.length],
+      point,
+      spread: 150
+    }
+  });
+
+  // Need to check the diagram exists because it might not be possible to compute the diagram from the given points.
+  if (diagram) {
+    for (let i = 0; i < points.length; i++) {
+      const site = points[i];
+      const cell = diagram.cells[site.voronoiId];
+      if (cell && cell.halfedges.length > 2) {
+        const endpoints = cell.halfedges.map(edge => edge.getEndpoint());
+        createPath(endpoints, site);
+      }
+    }
+  }
+
+  // orbs.forEach(orb => {
+  //   new Path.Circle({
+  //     fillColor: 'red',
+  //     radius: 10,
+  //     center: orb.point
+  //   });
+  // });
+
+
+  function createPath(points, center) {
+    const path = new Path({
+      segments: points,
+      closed: true
+    });
+    const angle = random(360);
+
+    // const maxDist = 200;
+
+    let rotationStep = 0;
+    orbs.forEach((orb, i) => {
+      const dist = orb.point.getDistance(center);
+      let stepSize;
+      if (dist < orb.spread) {
+        // stepSize = lerp(2, 20, Math.pow((dist / maxDist), 2));
+        stepSize = smoothStep(2, 10, 1 - (dist / orb.spread));
+        hatch(path, {
+          pen: orb.pen,
+          stepSize,
+          angle: angle + rotationStep * 5
+        });
+        rotationStep += 1;
       }
     });
     path.remove();
