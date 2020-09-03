@@ -455,11 +455,23 @@ function draw() {
   const diagram = voronoi.compute(points, bbox);
 
   // const palette = palettes.palette_hot_and_cold;
-  const palette = palettes.palette_flowers;
+  // const palette = palettes.palette_flowers;
+  const palette = [
+    palettes.palette_evening[0],
+    palettes.palette_evening[1],
+    palettes.palette_evening[5]
+  ];
+
   // const palette = [
   //   pens.STABILO_88_51,
   //   pens.STABILO_88_50,
   //   pens.STABILO_88_44
+  // ];
+
+  // const palette = [
+  //   pens.STABILO_88_40,
+  //   pens.STABILO_88_36,
+  //   pens.STABILO_88_32
   // ];
 
   // points.map(point => {
@@ -472,14 +484,14 @@ function draw() {
 
   let orbPoints = relaxationDisplacement(
     randomPoints([width, height], 15, margin),
-    { distance: 150, stepSize: 10 }
+    { distance: 200, stepSize: 10 }
   );
 
   const orbs = orbPoints.map((point, i) => {
     return {
       pen: palette[i % palette.length],
       point,
-      spread: 150
+      spread: random(100, 250)
     }
   });
 

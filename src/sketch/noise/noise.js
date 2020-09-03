@@ -678,6 +678,6 @@ function marchingSquares () {
 // valueNoise2dExample();
 // valueNoise3dAnimatedExample();
 // perlinNoise2dExample();
-// perlinNoise3dAnimatedExample();
+perlinNoise3dAnimatedExample();
 
 // marchingSquares();

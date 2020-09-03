@@ -62,29 +62,49 @@ async function inviteV1() {
     const margin = 30;
     const cross = 20;
 
-    const topBorder = new Path.Line({
-      from: [cross, margin],
-      to: [width - cross, margin],
-      strokeColor: 'black'
-    });
+    // const topBorder = new Path.Line({
+    //   from: [cross, margin],
+    //   to: [width - cross, margin],
+    //   strokeColor: 'black'
+    // });
 
-    const bottomBorder = new Path.Line({
-      from: [cross, height - margin],
-      to: [width - cross, height - margin],
-      strokeColor: 'black'
-    });
+    // const bottomBorder = new Path.Line({
+    //   from: [cross, height - margin],
+    //   to: [width - cross, height - margin],
+    //   strokeColor: 'black'
+    // });
 
-    const leftBorder = new Path.Line({
-      from: [margin, cross],
-      to: [margin, height - cross],
-      strokeColor: 'black'
-    });
+    // const leftBorder = new Path.Line({
+    //   from: [margin, cross],
+    //   to: [margin, height - cross],
+    //   strokeColor: 'black'
+    // });
 
-    const rightBorder = new Path.Line({
-      from: [width - margin, cross],
-      to: [width - margin, height - cross],
-      strokeColor: 'black'
-    });
+    // const rightBorder = new Path.Line({
+    //   from: [width - margin, cross],
+    //   to: [width - margin, height - cross],
+    //   strokeColor: 'black'
+    // });
+
+    const topBorder = handdrawnLine(
+      new Point(cross, margin),
+      new Point(width - cross, margin)
+    );
+
+    const bottomBorder = handdrawnLine(
+      new Point([cross, height - margin]),
+      new Point([width - cross, height - margin])
+    );
+
+    const leftBorder = handdrawnLine(
+      new Point(margin, cross),
+      new Point(margin, height - cross)
+    );
+
+    const rightBorder = handdrawnLine(
+      new Point(width - margin, cross),
+      new Point(width - margin, height - cross)
+    );
   }
 
   function header() {
@@ -128,45 +148,53 @@ async function inviteV1() {
   header();
   body();
 
-  function vine(from, to) {
-    const nNodes = 20;
+  const flower = babiesBreath(new Point(100, 200), new Point(0, -1), 7);
 
-    const nodes = [from];
-    const step = from.getDistance(to) / nNodes;
+  function vine(from, to, nLeaves = 10) {
+    const stem = handdrawnLine(from, to, { pen: pens.BLUE });
+
     const vec = to.subtract(from).normalize();
-    for (let i = 0; i < nNodes; i++) {
-      const node = nodes[nodes.length - 1].add(vec.multiply(step));
-      nodes.push(node);
+    // const nLeaves = 10;
+    const step = Math.floor(stem.segments.length / nLeaves);
+    const leafLength = 20;
+    
+    for (let i = Math.floor(step / 2), iter = 0; i < stem.segments.length; i += step, iter++) {
+      const leafVecL = vec.rotate(random(40, 50)).multiply(random(leafLength-3, leafLength+3));
+      const leafVecR = vec.rotate(random(-40, -50)).multiply(random(leafLength - 3, leafLength + 3));
+
+      const segmenti = i + randomInt(-5, 5); //stem.segments[];
+      if (stem.segments[segmenti]) {
+        const segment = stem.segments[segmenti];
+        const node = segment.point;
+        leaf(node, leafVecL);
+      }
+
+      if (stem.segments[segmenti + 1]) {
+        const segment = stem.segments[segmenti + 1];
+        const node = segment.point;
+        leaf(node, leafVecR);
+      }
     }
 
-    // Draw stem
-    const stem = new Path({
-      segments: nodes,
-      strokeColor: 'blue'
-    });
-
-    // Add leaves to stem
-    const leafLength = 20;
-    const leafVecL = vec.rotate(45).multiply(leafLength);
-    const leafVecR = vec.rotate(-45).multiply(leafLength);
-    nodes.forEach((node, i) => {
-      const leafVec = [leafVecL, leafVecR][i % 2];
-      const tip = node.add(leafVec);
+    function leaf(node, vec) {
+      const tip = node.add(vec);
 
       const leafWidth = 3;
       const midPointVec = tip.subtract(node);
       const perp = midPointVec.rotate(90).normalize();
       const midPoint1 = node.add(midPointVec.divide(2).add(perp.multiply(leafWidth)));
       const midPoint2 = node.add(midPointVec.divide(2).add(perp.multiply(-leafWidth)));
-      
-      const leaf = new Path({
-        segments: [node, midPoint1, tip, midPoint2],
-        strokeColor: 'blue',
-        fillColor: 'blue',
-        closed: true
+
+      return pens.withPen(pens.BLUE, ({ color }) => {
+        const path = new Path({
+          segments: [node, midPoint1, tip, midPoint2],
+          strokeColor: color,
+          closed: true
+        });
+        path.smooth();
+        return path;
       });
-      leaf.smooth();
-    });
+    }
   }
 
   function vineBorder() {
@@ -197,4 +225,79 @@ async function inviteV1() {
   }
 }
 
+function babiesBreath(pos, vec, depth = 0) {
+  const paths = [];
+
+  _babiesBreath(pos, vec, depth);
+
+  return paths;
+
+  function _babiesBreath(pos, vec, depth = 0) {
+    if (depth <= 0) {
+      return;
+    }
+    const length = random(5, 10);
+    const to = pos.add(vec.multiply(length));
+    const stem = new Path.Line({
+      from: pos,
+      to,
+      strokeColor: 'brown'
+    });
+    if (intersects(paths, stem)) {
+      stem.remove();
+      return;
+    }
+    paths.push(stem);
+
+    let stemVec = vec;
+    for (let i = 0; i < 2; i++) {
+      // const newVec = vec.rotate(random(-45, 45));
+      stemVec = stemVec.rotate(choose([random(10, 30), random(-10, -30)]))
+      _babiesBreath(to, stemVec, depth - 1);
+    }
+  }
+}
+
+// Given a babies breath flower (aka an array of paths), check if a stem crosses any other stems.
+function intersects(flower, stem) {
+  for (let path of flower) {
+    const intersections = stem.getCrossings(path);
+    if (intersections.length) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function handdrawnLine(from, to, opts = {}) {
+  const {
+    pen = pens.BLACK
+  } = processOptions(opts);
+  const segments = [from];
+  const stepSize = 2;
+  const rotation = 5;
+  const vec = to.subtract(from).normalize();
+  const dist = to.getDistance(from);
+  const steps = Math.floor(dist / stepSize);
+  for (let i = 0; i < steps; i++) {
+    const prev = segments[segments.length - 1];
+    const point = prev.add(vec.rotate(random(-rotation, rotation)).multiply(stepSize));
+    segments.push(point);
+  }
+  return pens.withPen(pen, ({ color }) => {
+    const path = new Path({
+      segments,
+      strokeColor: color
+    });
+
+    path.smooth();
+
+    return path;
+  });
+}
+
 inviteV1();
+
+window.saveAsSvg = function save(name) {
+  saveAsSVG(paper.project, name);
+}

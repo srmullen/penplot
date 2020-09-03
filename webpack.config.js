@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const sketches = ['wedding_invitation', 'noise', 'line_sort', 'voronoi'];
+const sketches = ['wedding_invitation', 'line_sort', 'voronoi', 'edges'];
 const basePath = './src/sketch';
 const dir = fs.readdirSync(basePath);
 const entry = {};
