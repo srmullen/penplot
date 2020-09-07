@@ -56,35 +56,24 @@ async function inviteV1() {
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
 
-  const font = await loadOpentype('src/fonts/Spartan/static/Spartan-Regular.ttf');
+  // const font = await loadOpentype('src/fonts/Spartan/static/Spartan-Regular.ttf');
+  
+  // const font = await loadOpentype('src/fonts/Handlee/Handlee-Regular.ttf');
+  // const font = await loadOpentype('src/fonts/Kite_One/KiteOne-Regular.ttf');
+  // const font = await loadOpentype('src/fonts/Open_Sans_condensed/OpenSansCondensed-Light.ttf');
+
+  // const font = await loadOpentype('src/fonts/Bellota/Bellota-Light.ttf');
+  const font = await loadOpentype('src/fonts/Poiret_One/PoiretOne-Regular.ttf');
+
+  // const scriptFont = await loadOpentype('src/fonts/Satisfy/Satisfy-Regular.ttf');
+  // const scriptFont = await loadOpentype('src/fonts/Cookie/Cookie-Regular.ttf');
+  // const scriptFont = await loadOpentype('src/fonts/Dancing_Script/static/DancingScript-SemiBold.ttf');
+  const scriptFont = await loadOpentype('src/fonts/Parisienne/Parisienne-Regular.ttf');
+  // const scriptFont = await loadOpentype('src/fonts/Rochester/Rochester-Regular.ttf');
 
   function outerBorder() {
     const margin = 30;
     const cross = 20;
-
-    // const topBorder = new Path.Line({
-    //   from: [cross, margin],
-    //   to: [width - cross, margin],
-    //   strokeColor: 'black'
-    // });
-
-    // const bottomBorder = new Path.Line({
-    //   from: [cross, height - margin],
-    //   to: [width - cross, height - margin],
-    //   strokeColor: 'black'
-    // });
-
-    // const leftBorder = new Path.Line({
-    //   from: [margin, cross],
-    //   to: [margin, height - cross],
-    //   strokeColor: 'black'
-    // });
-
-    // const rightBorder = new Path.Line({
-    //   from: [width - margin, cross],
-    //   to: [width - margin, height - cross],
-    //   strokeColor: 'black'
-    // });
 
     const topBorder = handdrawnLine(
       new Point(cross, margin),
@@ -108,7 +97,7 @@ async function inviteV1() {
   }
 
   function header() {
-    const fontSize = 32;
+    const fontSize = 42;
     const top = height / 5;
     const lineHeight = 50;
     const lines = [
@@ -119,7 +108,7 @@ async function inviteV1() {
       'Mullen'
     ];
     lines.forEach((line, i) => {
-      textp(font, new Point(width / 2, top + lineHeight * i), line, { fontSize, pen: pens.BLACK });
+      textp(scriptFont, new Point(width / 2, top + lineHeight * i), line, { fontSize, pen: pens.BLACK });
     });
     // textp(font, new Point(width / 2, top), 'Jacqueline Walter', { fontSize, pen: pens.BLACK });
     // textp(font, new Point(width / 2, top + lineHeight), '&', { fontSize, pen: pens.BLACK });
@@ -131,12 +120,13 @@ async function inviteV1() {
     const top = height * 0.618;
     const lineHeight = 25;
     const lines = [
-      'saturday November 7',
-      'two thousand twenty',
-      'at 3:30 in the afternoon',
+      'Saturday November 7',
+      'Two Thousand Twenty',
+      'at 4 in the afternoon',
+      '',
       'Barrows House Inn',
       'Dorset, Vermont',
-      'RSVP by phone'
+      // 'RSVP by phone'
     ];
     lines.forEach((line, i) => {
       textp(font, new Point(width / 2, top + lineHeight * i), line, { fontSize, pen: pens.BLACK });
@@ -144,17 +134,52 @@ async function inviteV1() {
   }
 
   outerBorder();
-  vineBorder();
+  const vines = vineBorder();
   header();
   body();
+  for (let i = 0; i < vines.length; i++) {
+    fireflies(vines[i]);
+  }
 
-  const flower = babiesBreath(new Point(100, 200), new Point(0, -1), 7);
+  function fireflies({stem, leaves}) {
+    const glowbugs = [];
+    const range = 20;
+    const bugginess = 15;
+    const maxIters = 50;
+    const iter = 0;
+    while (iter < maxIters && glowbugs.length < bugginess) {
+      const point = stem.segments[randomInt(stem.segments.length)].point;
+      const vec = new Point(0, 1).rotate(random(360)).multiply(random(range));
+      const bug = new Path.Circle({
+        center: point.add(vec),
+        radius: random(2, 4),
+        strokeColor: 'green'
+      });
+
+      const onStem = stem.getIntersections(bug).length;
+      const onLeaf = leaves.some(leaf => {
+        return leaf.getIntersections(bug).length;
+      });
+      const midairCollision = glowbugs.some(glowbug => {
+        return glowbug.getIntersections(bug).length;
+      });
+
+      if (!onLeaf && !onStem && !midairCollision) {
+        glowbugs.push(bug);
+      } else {
+        bug.remove();
+      }
+    }
+    return glowbugs;
+  }
+
+  // const flower = babiesBreath(new Point(100, 200), new Point(0, -1), 7);
 
   function vine(from, to, nLeaves = 10) {
+    const leaves = [];
     const stem = handdrawnLine(from, to, { pen: pens.BLUE });
 
     const vec = to.subtract(from).normalize();
-    // const nLeaves = 10;
     const step = Math.floor(stem.segments.length / nLeaves);
     const leafLength = 20;
     
@@ -166,15 +191,20 @@ async function inviteV1() {
       if (stem.segments[segmenti]) {
         const segment = stem.segments[segmenti];
         const node = segment.point;
-        leaf(node, leafVecL);
+        leaves.push(leaf(node, leafVecL));
       }
 
       if (stem.segments[segmenti + 1]) {
         const segment = stem.segments[segmenti + 1];
         const node = segment.point;
-        leaf(node, leafVecR);
+        leaves.push(leaf(node, leafVecR));
       }
     }
+
+    return {
+      stem,
+      leaves
+    };
 
     function leaf(node, vec) {
       const tip = node.add(vec);
@@ -200,28 +230,32 @@ async function inviteV1() {
   function vineBorder() {
     const margin = 50;
     // Top
-    vine(
+    const top = vine(
       new Point(margin, margin), 
       new Point(width - margin, margin)
     );
 
     // Right
-    vine(
+    const right = vine(
       new Point(width - margin, margin), 
-      new Point(width - margin, height - margin)
+      new Point(width - margin, height - margin),
+      14
     );
 
     // Bottom
-    vine(
+    const bottom = vine(
       new Point(width - margin, height - margin), 
       new Point(margin, height - margin)
     );
 
     // Left
-    vine(
+    const left = vine(
       new Point(margin, height - margin), 
-      new Point(margin, margin)
+      new Point(margin, margin),
+      14
     );
+
+    return [top, right, bottom, left];
   }
 }
 
