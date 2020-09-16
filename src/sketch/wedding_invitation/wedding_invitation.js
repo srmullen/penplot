@@ -40,7 +40,7 @@ function textp(font, point, content, { fontSize = 12, pen = pens.BLACK } = {}) {
   return pens.withPen(pen, ({ color }) => {
     const path = new paper.CompoundPath(pathData);
     path.strokeColor = color;
-    path.fillColor = color;
+    // path.fillColor = color;
     path.position = point;
     return path;
   });
@@ -62,8 +62,8 @@ async function inviteV1() {
   // const font = await loadOpentype('src/fonts/Kite_One/KiteOne-Regular.ttf');
   // const font = await loadOpentype('src/fonts/Open_Sans_condensed/OpenSansCondensed-Light.ttf');
 
-  // const font = await loadOpentype('src/fonts/Bellota/Bellota-Light.ttf');
-  const font = await loadOpentype('src/fonts/Poiret_One/PoiretOne-Regular.ttf');
+  const bellota = await loadOpentype('src/fonts/Bellota/Bellota-Light.ttf');
+  const poiret = await loadOpentype('src/fonts/Poiret_One/PoiretOne-Regular.ttf');
 
   // const scriptFont = await loadOpentype('src/fonts/Satisfy/Satisfy-Regular.ttf');
   // const scriptFont = await loadOpentype('src/fonts/Cookie/Cookie-Regular.ttf');
@@ -75,31 +75,42 @@ async function inviteV1() {
     const margin = 30;
     const cross = 20;
 
+    // const pen = pens.STABILO_88_19;
+    const pen = pens.BLACK;
+
     const topBorder = handdrawnLine(
       new Point(cross, margin),
-      new Point(width - cross, margin)
+      new Point(width - cross, margin),
+      { pen }
     );
 
     const bottomBorder = handdrawnLine(
       new Point([cross, height - margin]),
-      new Point([width - cross, height - margin])
+      new Point([width - cross, height - margin]),
+      { pen: pen }
     );
 
     const leftBorder = handdrawnLine(
       new Point(margin, cross),
-      new Point(margin, height - cross)
+      new Point(margin, height - cross),
+      { pen: pen }
     );
 
     const rightBorder = handdrawnLine(
       new Point(width - margin, cross),
-      new Point(width - margin, height - cross)
+      new Point(width - margin, height - cross),
+      { pen: pen }
     );
   }
 
   function header() {
-    const fontSize = 42;
+    // const fontSize = 42;
+    const fontSize = 54;
     const top = height / 5;
-    const lineHeight = 50;
+    const lineHeight = 54;
+    // const pen = pens.STABILO_88_22;
+    // const pen = pens.BLACK;
+    const pen = pens.PRISMA05_BLACK;
     const lines = [
       'Jacqueline', 
       'Walter', 
@@ -108,7 +119,7 @@ async function inviteV1() {
       'Mullen'
     ];
     lines.forEach((line, i) => {
-      textp(scriptFont, new Point(width / 2, top + lineHeight * i), line, { fontSize, pen: pens.BLACK });
+      textp(scriptFont, new Point(width / 2, top + lineHeight * i), line, { fontSize, pen });
     });
     // textp(font, new Point(width / 2, top), 'Jacqueline Walter', { fontSize, pen: pens.BLACK });
     // textp(font, new Point(width / 2, top + lineHeight), '&', { fontSize, pen: pens.BLACK });
@@ -116,7 +127,8 @@ async function inviteV1() {
   }
 
   function body() {
-    const fontSize = 16;
+    // const fontSize = 16;
+    const fontSize = 22;
     const top = height * 0.618;
     const lineHeight = 25;
     const lines = [
@@ -129,6 +141,8 @@ async function inviteV1() {
       // 'RSVP by phone'
     ];
     lines.forEach((line, i) => {
+      // const font = i > 3 ? poiret : bellota;
+      const font = poiret;
       textp(font, new Point(width / 2, top + lineHeight * i), line, { fontSize, pen: pens.BLACK });
     });
   }
@@ -137,37 +151,58 @@ async function inviteV1() {
   const vines = vineBorder();
   header();
   body();
+  let glowbugs = []
   for (let i = 0; i < vines.length; i++) {
-    fireflies(vines[i]);
+    // console.log(glowbugs);
+    glowbugs = glowbugs.concat(fireflies(glowbugs, vines[i]));
   }
 
-  function fireflies({stem, leaves}) {
+  function fireflies(bugs, {stem, leaves}) {
     const glowbugs = [];
     const range = 20;
     const bugginess = 15;
     const maxIters = 50;
     const iter = 0;
+    const stemVec = stem.segments[stem.segments.length-1].point.subtract(stem.segments[0].point).normalize();
     while (iter < maxIters && glowbugs.length < bugginess) {
-      const point = stem.segments[randomInt(stem.segments.length)].point;
-      const vec = new Point(0, 1).rotate(random(360)).multiply(random(range));
-      const bug = new Path.Circle({
+      const point = stem.segments[randomInt(10, stem.segments.length-10)].point;
+      // const vec = new Point(0, 1).rotate(choose([1, -1]) * random(30, 150)).multiply(random(range));
+      const vec = stemVec.rotate(choose([1, -1]) * random(30, 150)).multiply(random(5, range));
+      const bugColors = [pens.GELLY_ROLL_METALLIC_GOLD, pens.STABILO_88_19]
+      const bugRadius = new Path.Circle({
         center: point.add(vec),
-        radius: random(2, 4),
-        strokeColor: 'green'
+        radius: 6,
+        strokeColor: 'black'
       });
 
-      const onStem = stem.getIntersections(bug).length;
+      const onStem = stem.getIntersections(bugRadius).length;
+      // const onStem = stem.getCrossings(bugRadius).length;
+      // const onStem = bugRadius.hitTest(stem, { curves: true });
+      // if (onStem) {
+      //   console.log(onStem);
+      // }
       const onLeaf = leaves.some(leaf => {
-        return leaf.getIntersections(bug).length;
+        return leaf.getIntersections(bugRadius).length;
       });
       const midairCollision = glowbugs.some(glowbug => {
-        return glowbug.getIntersections(bug).length;
+        return glowbug.getIntersections(bugRadius).length;
       });
-
+      console.log(onLeaf, onStem, midairCollision);
       if (!onLeaf && !onStem && !midairCollision) {
+        const bug = pens.withPen(choose(bugColors), ({ color }) => {
+          bugRadius.remove();
+          return new Path.Circle({
+            center: point.add(vec),
+            radius: random(2, 4),
+            // radius: 6,
+            strokeColor: color
+          });
+        });
         glowbugs.push(bug);
       } else {
-        bug.remove();
+        // console.log('removing bug');
+        bugRadius.remove();
+        // bug.fillColor = 'black';
       }
     }
     return glowbugs;
@@ -177,7 +212,8 @@ async function inviteV1() {
 
   function vine(from, to, nLeaves = 10) {
     const leaves = [];
-    const stem = handdrawnLine(from, to, { pen: pens.BLUE });
+    const pen = pens.STABILO_88_22;
+    const stem = handdrawnLine(from, to, { pen });
 
     const vec = to.subtract(from).normalize();
     const step = Math.floor(stem.segments.length / nLeaves);
@@ -191,13 +227,13 @@ async function inviteV1() {
       if (stem.segments[segmenti]) {
         const segment = stem.segments[segmenti];
         const node = segment.point;
-        leaves.push(leaf(node, leafVecL));
+        leaves.push(leaf(node, leafVecL, { pen }));
       }
 
       if (stem.segments[segmenti + 1]) {
         const segment = stem.segments[segmenti + 1];
         const node = segment.point;
-        leaves.push(leaf(node, leafVecR));
+        leaves.push(leaf(node, leafVecR, { pen }));
       }
     }
 
@@ -206,7 +242,7 @@ async function inviteV1() {
       leaves
     };
 
-    function leaf(node, vec) {
+    function leaf(node, vec, { pen }) {
       const tip = node.add(vec);
 
       const leafWidth = 3;
@@ -215,7 +251,7 @@ async function inviteV1() {
       const midPoint1 = node.add(midPointVec.divide(2).add(perp.multiply(leafWidth)));
       const midPoint2 = node.add(midPointVec.divide(2).add(perp.multiply(-leafWidth)));
 
-      return pens.withPen(pens.BLUE, ({ color }) => {
+      return pens.withPen(pen, ({ color }) => {
         const path = new Path({
           segments: [node, midPoint1, tip, midPoint2],
           strokeColor: color,
@@ -228,7 +264,7 @@ async function inviteV1() {
   }
 
   function vineBorder() {
-    const margin = 50;
+    const margin = 65;
     // Top
     const top = vine(
       new Point(margin, margin), 

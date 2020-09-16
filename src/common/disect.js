@@ -185,7 +185,16 @@ export const disect = disect_v1;
 
   console.log(disection);
 
+  // const segments = disection[1];
+  // console.log(segments);
+  // new Path({
+  //   segments,
+  //   closed: true,
+  //   fillColor: please.make_color(),
+  // });
+
   disection.forEach(segments => {
+    console.log(segments);
     return new Path({
       segments,
       closed: true,
@@ -220,9 +229,9 @@ export function disect_v2(path, line) {
     } else {
       const half = disection[idx];
       half.push(curve.segment1);
-      half.push(intersections[0].point);
+      half.push(intersections[0].curve);
       idx = (idx + 1) % 2;
-      disection[idx].push(intersections[0].point);
+      disection[idx].push(intersections[0].curve);
     }
   });
   return disection;
