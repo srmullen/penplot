@@ -236,3 +236,16 @@ export function sizeTest() {
     center: [width - 11, height - 11]
   });
 }
+
+/**
+ * 
+ * @param {Number} n - The number of time to repeat
+ * @param {any}} el - the element to repeat
+ */
+export function repeat(n, el) {
+  const ret = [];
+  for (let i = 0; i < n; i++) {
+    ret.push(el);
+  }
+  return ret;
+}

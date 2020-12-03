@@ -9,6 +9,7 @@ import {
 import * as pens from 'common/pens';
 import * as sort from './sort';
 import * as palettes from 'common/palettes';
+import convert from 'convert-length';
 
 const seed = randomInt(2000);
 // const seed = 1456;
@@ -252,7 +253,16 @@ function bogoSort(items) {
 }
 
 function cocktailSort(items) {
-  const PAPER_SIZE = STRATH_SMALL.landscape;
+  // const PAPER_SIZE = STRATH_SMALL.landscape;
+  // const [width, height] = PAPER_SIZE;
+  // const canvas = createCanvas(PAPER_SIZE);
+  // paper.setup(canvas);
+
+  const PAPER_SIZE = [8.5, 5.5].map(n => {
+    return convert(n, 'in', 'px', { pixelsPerInch: 96 }); // 96 is the default based on css spec.
+  });
+  console.log(STRATH_SMALL.landscape);
+  console.log(PAPER_SIZE);
   const [width, height] = PAPER_SIZE;
   const canvas = createCanvas(PAPER_SIZE);
   paper.setup(canvas);
@@ -264,7 +274,7 @@ function cocktailSort(items) {
 
   const sorted = [...sortFn(exchangeFn, compareObjectByKey.bind(null, 'val'), items)];
 
-  draw(original, sorted, width, height);
+  draw(original, sorted, width, height, { removeUselessPoints: true });
 }
 
 function cycleSort(items, opts) {
@@ -461,9 +471,12 @@ function draw(original, sorted, width, height, opts = {}) {
     // add starting point and end point
     const start = new Point(segment[0]).subtract(margin / 4, 0);
     const end = new Point(segment[segment.length - 1]).add(margin / 4, 0);
-    const s = [start, ...segment, end];
+    let s = [start, ...segment, end].map(p => new Point(p));
     const pen = opts.reversePen ? sorted[sorted.length - 1].list[i].pen : original[i].pen;
     // const pen = sorted[sorted.length-1].list[i].pen;
+    if (opts.removeUselessPoints) {
+      s = removeUselessPoints(s);
+    }
     pens.withPen(pen, ({ color }) => {
       const strokeColor = new paper.Color(color);
       strokeColor.alpha = 1;
@@ -481,6 +494,56 @@ function draw(original, sorted, width, height, opts = {}) {
       paths.push(path);
     });
   }
+}
+
+function removeUselessPoints(points) {
+  // max two points, can't shorten
+  if (points.length < 3) {
+    return [...points];
+  }
+
+  const ret = [];
+  let slope;
+  for (let i = 0; i < points.length-1; i++) {
+    const newSlope = points[i+1].subtract(points[i]).angle;
+    if (newSlope !== slope) {
+      ret.push(points[i]);
+      slope = newSlope;
+    }
+  }
+  ret.push(points[points.length-1]);
+  return ret;
+}
+
+function testRemoveUselessPoints() {
+  const PAPER_SIZE = STRATH_SMALL.landscape;
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const points = [];
+  // for (let i = 0; i < 10; i++) {
+  //   points.push(new Point(i * 20, 100 + i * 10));
+  // }
+  // for (let i = 10; i < 20; i++) {
+  //   points.push(new Point(i * 20, 100 + i * -10));
+  // }
+  for (let i = 0; i < 20; i++) {
+    points.push(new Point(100, i * 10));
+  }
+
+  const path = new Path({
+    segments: points,
+    strokeColor: 'black'
+  });
+
+  const shorter = removeUselessPoints(points);
+  new Path({
+    segments: shorter,
+    strokeColor: 'red'
+  }).translate(100, 100);
+  console.log(points.length);
+  console.log(shorter.length);
 }
 
 function splitReverse(arr, depth=0) {
@@ -523,7 +586,8 @@ function splitReverse(arr, depth=0) {
 
 // bogoSort(repeatItems(4, palettes.palette_neon));
 
-// cocktailSort(reverseItems(14, palettes.palette_hot_and_cold));
+// testRemoveUselessPoints();
+cocktailSort(reverseItems(14, palettes.palette_hot_and_cold));
 // palettes.palette_blues_and_greens.reverse();
 // cocktailSort(reverseItems(14, palettes.palette_blues_and_greens));
 
@@ -589,7 +653,7 @@ function splitReverse(arr, depth=0) {
 // bitonicSort(repeatItems(20, palettes.palette_large), {}, A4);
 // bitonicSort(reverseItems(14, palettes.palette_large), {}, A4);
 
-quadSort(repeatItems(20, palettes.palette_large), {}, A4);
+// quadSort(repeatItems(20, palettes.palette_large), {}, A4);
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);

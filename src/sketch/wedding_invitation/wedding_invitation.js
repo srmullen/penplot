@@ -366,7 +366,148 @@ function handdrawnLine(from, to, opts = {}) {
   });
 }
 
-inviteV1();
+// inviteV1();
+
+async function seating_plan1() {
+  const PAPER_SIZE = [7, 5].map(n => {
+    return convert(n, 'in', 'px', { pixelsPerInch: 96 }); // 96 is the default based on css spec.
+  });
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const poiret = await loadOpentype('src/fonts/Poiret_One/PoiretOne-Regular.ttf');
+
+  const scriptFont = await loadOpentype('src/fonts/Parisienne/Parisienne-Regular.ttf');
+
+  const table1 = [
+    'Jacqueline Mullen',
+    'Sean Mullen',
+    'Annie Espinosa',
+    'Michael Gibler',
+    'Sharon Zanti',
+    'Jordan Stutz',
+    'Leslie Sale',
+    'Will Tucker'
+  ];
+
+  const table2 = [
+    'Gail Walter',
+    'Ray Walter',
+    'Theresa Mullen',
+    'Glen Mullen',
+    'Lenny Kellner',
+    'Jill Kellner',
+    'Ginette Kellner'
+  ];
+
+  const table3 = [
+    'Jennifer Walter',
+    'Adam Slattery',
+    'Alyssa Whelan',
+    'Kevin Whelan',
+    'Joshua Kellner',
+    'Ally Kellner',
+    'Evan Kellner',
+    'Breanne Kaminski'
+  ];
+
+  // writeGuests('one', table1, width * 0.25, height / 5);
+  
+  writeGuests('two', table2, width * 0.75, height / 5);
+  writeGuests('three', table3, width * 0.25, height / 5);
+
+  outerBorder(width / 2, height);
+  outerBorder(width / 2, height).map(line => {
+    line.translate(width / 2, 0);
+  });
+
+  function writeGuests(num, guests = [], center = 0, top = 0) {
+    const tableFontSize = 62;
+    const fontSize = 18;
+    const lineHeight = 28;
+    // const pen = pens.PRISMA05_BLACK;
+    const pen = pens.STABILO_88_22;
+
+    textp(scriptFont, new Point(center, top), num, { 
+      fontSize: tableFontSize, 
+      pen 
+    });
+
+    guests.forEach((guest, i) => {
+      textp(poiret, new Point(center, (top + tableFontSize) + lineHeight * i), guest, { fontSize, pen });
+    });
+  }
+
+  function outerBorder(width, height) {
+    const margin = 30;
+    const cross = 20;
+
+    const pen = pens.STABILO_88_22;
+    // const pen = pens.BLACK;
+
+    const topBorder = handdrawnLine(
+      new Point(cross, margin),
+      new Point(width - cross, margin),
+      { pen }
+    );
+
+    const bottomBorder = handdrawnLine(
+      new Point([cross, height - margin]),
+      new Point([width - cross, height - margin]),
+      { pen: pen }
+    );
+
+    const leftBorder = handdrawnLine(
+      new Point(margin, cross),
+      new Point(margin, height - cross),
+      { pen: pen }
+    );
+
+    const rightBorder = handdrawnLine(
+      new Point(width - margin, cross),
+      new Point(width - margin, height - cross),
+      { pen: pen }
+    );
+
+    return [topBorder, bottomBorder, leftBorder, rightBorder];
+  }
+}
+
+// seating_plan1();
+
+async function seating_numbers() {
+  const PAPER_SIZE = [5, 7].map(n => {
+    return convert(n, 'in', 'px', { pixelsPerInch: 96 }); // 96 is the default based on css spec.
+  });
+  const [width, height] = PAPER_SIZE;
+  const canvas = createCanvas(PAPER_SIZE);
+  paper.setup(canvas);
+
+  const poiret = await loadOpentype('src/fonts/Poiret_One/PoiretOne-Regular.ttf');
+
+  const scriptFont = await loadOpentype('src/fonts/Parisienne/Parisienne-Regular.ttf');
+
+  const fontSize = 160;
+  const pen = pens.STABILO_88_22;
+
+  textp(scriptFont, new Point(width * 0.5, height * 0.25), 'one', {
+    fontSize,
+    pen
+  });
+
+  textp(scriptFont, new Point(width * 0.5, height * 0.5), 'two', {
+    fontSize,
+    pen
+  });
+
+  textp(scriptFont, new Point(width * 0.5, height * 0.75), 'three', {
+    fontSize,
+    pen
+  });
+}
+
+seating_numbers();
 
 window.saveAsSvg = function save(name) {
   saveAsSVG(paper.project, name);
