@@ -51,7 +51,7 @@
     "voronoi": "^1.0.0",
     "webfontloader": "^1.6.28",
     "webpack": "^4.25.1",
-    "webpack-cli": "^3.1.2",
+    "webpack-cli": "^3.3.12",
     "webpack-dev-server": "^3.1.14",
     "weighted-random": "^0.1.0"
   },
